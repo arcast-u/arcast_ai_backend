@@ -14,8 +14,10 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3001/api',
-        description: 'Development server'
+        url: process.env.NODE_ENV === 'production' 
+          ? 'https://arcast-ai-backend.vercel.app/api'
+          : 'http://localhost:3001/api',
+        description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server'
       }
     ],
     components: {
