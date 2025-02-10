@@ -74,9 +74,14 @@ export async function createNotionBookingEntry(booking) {
         "Phone Number": {
           phone_number: booking.lead.phoneNumber
         },
-        // Optional fields with empty/default values
         "Setup": {
-          multi_select: []
+          rich_text: [
+            {
+              text: {
+                content: booking.studio.name
+              }
+            }
+          ]
         },
         "Additional Services": {
           multi_select: []
