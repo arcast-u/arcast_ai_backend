@@ -7,6 +7,7 @@ import { specs } from './docs/swagger.js';
 import studioRoutes from './routes/studio.routes.js';
 import bookingRoutes from './routes/booking.routes.js';
 
+//use direcnt cdn
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 
 
