@@ -1,0 +1,109 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Studio {
+    id              String    @id @default(uuid())
+    name            String
+    location        String
+    imageUrl        String
+    totalSeats      Int
+    openingTime     String    // Store as "HH:mm" format
+    closingTime     String    // Store as "HH:mm" format
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    bookings        Booking[]
+    packages        StudioPackage[]
+}
+
+model StudioPackage {
+    id              String    @id @default(uuid())
+    name            String
+    price_per_hour  Decimal   @db.Decimal(10, 2)
+    currency        String    @default("AED")
+    description     String
+    delivery_time   Int
+    studioId        String?
+    studio          Studio?   @relation(fields: [studioId], references: [id])
+    bookings        Booking[]
+    packagePerks    PackagePerk[]
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+}
+
+model PackagePerk {
+    id              String    @id @default(uuid())
+    name            String
+    count           Int?      // Optional count for items like "3x Sony cameras"
+    packageId       String
+    package         StudioPackage @relation(fields: [packageId], references: [id])
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+}
+
+model DiscountCode {
+    id          String      @id @default(cuid())
+    code        String      @unique
+    type        DiscountType
+    value       Float
+    maxUses     Int?
+    usedCount   Int         @default(0)
+    startDate   DateTime
+    endDate     DateTime
+    isActive    Boolean     @default(true)
+    minAmount   Float?      // Minimum booking amount required
+    bookings    Booking[]   // Relation to bookings that used this code
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+
+    @@index([code])
+}
+
+enum DiscountType {
+    PERCENTAGE
+    FIXED_AMOUNT
+}
+
+model Booking {
+    id              String    @id @default(uuid())
+    startTime       DateTime
+    endTime         DateTime
+    numberOfSeats   Int
+    totalCost       Decimal   @db.Decimal(10, 2)
+    vatAmount       Decimal   @db.Decimal(10, 2)
+    discountAmount  Decimal?  @db.Decimal(10, 2)
+    status          BookingStatus @default(PENDING)
+    studioId        String
+    studio          Studio    @relation(fields: [studioId], references: [id])
+    packageId       String
+    package         StudioPackage @relation(fields: [packageId], references: [id])
+    leadId          String
+    lead            Lead      @relation(fields: [leadId], references: [id])
+    discountCodeId  String?
+    discountCode    DiscountCode?  @relation(fields: [discountCodeId], references: [id])
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+}
+
+model Lead {
+    id                String    @id @default(uuid())
+    fullName          String
+    email             String
+    phoneNumber       String
+    recordingLocation String
+    bookings          Booking[]
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
+}
+
+enum BookingStatus {
+    PENDING
+    CONFIRMED
+    CANCELLED
+    COMPLETED
+}
