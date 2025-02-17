@@ -104,7 +104,7 @@ export class BookingController {
             fullName: lead.fullName,
             email: lead.email,
             phoneNumber: lead.phoneNumber,
-            recordingLocation: lead.recordingLocation
+            ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation })
           }
         });
 
