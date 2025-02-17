@@ -35,8 +35,9 @@ async function createBookingsForStudio(studioId, packageId, dates, leadId) {
   for (const date of dates) {
     const timeSlots = generateTimeSlots(date, "09:00", "21:00");
     
-    for (const slot of timeSlots) {
-      const booking = await prisma.booking.create({
+    // Create a booking for each time slot
+    const bookingPromises = timeSlots.map(slot => 
+      prisma.booking.create({
         data: {
           startTime: slot.startTime,
           endTime: slot.endTime,
@@ -48,9 +49,11 @@ async function createBookingsForStudio(studioId, packageId, dates, leadId) {
           packageId: packageId,
           leadId: leadId,
         },
-      });
-      bookings.push(booking);
-    }
+      })
+    );
+
+    const createdBookings = await Promise.all(bookingPromises);
+    bookings.push(...createdBookings);
   }
   return bookings;
 }
@@ -137,7 +140,11 @@ async function main() {
         }
       },
       include: {
-        packages: true
+        packages: {
+          include: {
+            packagePerks: true
+          }
+        }
       }
     }),
     // Setup 1
@@ -157,7 +164,11 @@ async function main() {
         }
       },
       include: {
-        packages: true
+        packages: {
+          include: {
+            packagePerks: true
+          }
+        }
       }
     }),
     // Setup 2
@@ -177,7 +188,11 @@ async function main() {
         }
       },
       include: {
-        packages: true
+        packages: {
+          include: {
+            packagePerks: true
+          }
+        }
       }
     }),
     // Setup 3
@@ -197,7 +212,11 @@ async function main() {
         }
       },
       include: {
-        packages: true
+        packages: {
+          include: {
+            packagePerks: true
+          }
+        }
       }
     }),
     // Studio 4
@@ -217,7 +236,11 @@ async function main() {
         }
       },
       include: {
-        packages: true
+        packages: {
+          include: {
+            packagePerks: true
+          }
+        }
       }
     }),
     // Studio 5
@@ -237,14 +260,18 @@ async function main() {
         }
       },
       include: {
-        packages: true
+        packages: {
+          include: {
+            packagePerks: true
+          }
+        }
       }
     })
   ]);
 
   // Get today's date and next Friday
   const today = new Date();
-  const nextFriday = new Date();
+  const nextFriday = new Date(today);
   nextFriday.setDate(today.getDate() + ((7 - today.getDay() + 5) % 7));
 
   // Generate dates for the next 2 weeks
@@ -254,12 +281,14 @@ async function main() {
   // Create bookings for all studios except Mobile studio service
   for (let i = 1; i < studios.length; i++) {
     const dates = generateDates(today, 14); // 2 weeks of dates
-    // Create bookings for all time slots to make studios fully booked
+    console.log(`Creating bookings for ${studios[i].name} for 2 weeks`);
     await createBookingsForStudio(studios[i].id, basicPackage.id, dates, dummyLead.id);
   }
 
   // Create bookings for Mobile studio service only until Friday
-  const datesUntilFriday = generateDates(today, Math.ceil((nextFriday - today) / (1000 * 60 * 60 * 24)));
+  const daysUntilFriday = Math.ceil((nextFriday - today) / (1000 * 60 * 60 * 24));
+  const datesUntilFriday = generateDates(today, daysUntilFriday);
+  console.log(`Creating bookings for Mobile studio service until Friday (${daysUntilFriday} days)`);
   await createBookingsForStudio(studios[0].id, basicPackage.id, datesUntilFriday, dummyLead.id);
 
   // Create or update discount codes with proper dates

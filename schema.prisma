@@ -28,8 +28,7 @@ model StudioPackage {
     currency        String    @default("AED")
     description     String
     delivery_time   Int
-    studioId        String?
-    studio          Studio?   @relation(fields: [studioId], references: [id])
+    studios         Studio[]  // Changed to allow multiple studios
     bookings        Booking[]
     packagePerks    PackagePerk[]
     createdAt       DateTime  @default(now())
