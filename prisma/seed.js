@@ -23,20 +23,31 @@ function generateTimeSlots(date, openingTime, closingTime) {
     startTime.setHours(hour, 0, 0, 0);
     const endTime = new Date(date);
     endTime.setHours(hour + 1, 0, 0, 0);
-    slots.push({ startTime, endTime });
+    
+    // Ensure the slot is in the future
+    if (startTime > new Date()) {
+      slots.push({ startTime, endTime });
+    }
   }
   return slots;
 }
 
 // Helper function to create bookings for a studio
-async function createBookingsForStudio(studioId, packageId, dates, leadId) {
+async function createBookingsForStudio(studioId, packageId, dates, leadId, shouldBeFullyBooked = false) {
   const bookings = [];
   
   for (const date of dates) {
     const timeSlots = generateTimeSlots(date, "09:00", "21:00");
     
-    // Create a booking for each time slot
-    const bookingPromises = timeSlots.map(slot => 
+    // If shouldBeFullyBooked is true, book all slots
+    // Otherwise, only book 2-3 random slots per day to leave some availability
+    const slotsToBook = shouldBeFullyBooked ? timeSlots : timeSlots.filter((_, index) => {
+      // Randomly select 2-3 slots per day
+      return Math.random() < 0.25; // This will book roughly 25% of slots
+    });
+    
+    // Create a booking for each selected time slot
+    const bookingPromises = slotsToBook.map(slot => 
       prisma.booking.create({
         data: {
           startTime: slot.startTime,
@@ -282,14 +293,14 @@ async function main() {
   for (let i = 1; i < studios.length; i++) {
     const dates = generateDates(today, 14); // 2 weeks of dates
     console.log(`Creating bookings for ${studios[i].name} for 2 weeks`);
-    await createBookingsForStudio(studios[i].id, basicPackage.id, dates, dummyLead.id);
+    await createBookingsForStudio(studios[i].id, basicPackage.id, dates, dummyLead.id, true); // Set to fully booked
   }
 
   // Create bookings for Mobile studio service only until Friday
   const daysUntilFriday = Math.ceil((nextFriday - today) / (1000 * 60 * 60 * 24));
   const datesUntilFriday = generateDates(today, daysUntilFriday);
   console.log(`Creating bookings for Mobile studio service until Friday (${daysUntilFriday} days)`);
-  await createBookingsForStudio(studios[0].id, basicPackage.id, datesUntilFriday, dummyLead.id);
+  await createBookingsForStudio(studios[0].id, basicPackage.id, datesUntilFriday, dummyLead.id, true); // Fully booked until Friday
 
   // Create or update discount codes with proper dates
   const yearEnd = new Date(today.getFullYear(), 11, 31);

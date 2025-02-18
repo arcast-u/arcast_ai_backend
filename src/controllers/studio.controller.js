@@ -10,6 +10,14 @@ export class StudioController {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
+        // Get two weeks from now for regular studios
+        const twoWeeksFromNow = new Date(today);
+        twoWeeksFromNow.setDate(today.getDate() + 14);
+
+        // Get next Friday for mobile studio
+        const nextFriday = new Date(today);
+        nextFriday.setDate(today.getDate() + ((7 - today.getDay() + 5) % 7));
+
         const studios = await prisma.studio.findMany({
           include: {
             packages: {
@@ -19,12 +27,18 @@ export class StudioController {
             },
             bookings: {
               where: {
-                startTime: {
-                  gte: today
-                },
-                endTime: {
-                  lt: tomorrow
-                }
+                AND: [
+                  {
+                    status: {
+                      not: 'CANCELLED'
+                    }
+                  },
+                  {
+                    startTime: {
+                      gte: today
+                    }
+                  }
+                ]
               }
             }
           }
@@ -32,10 +46,18 @@ export class StudioController {
 
         // Add availability information to each studio
         const studiosWithAvailability = studios.map(studio => {
+          // Determine the end date based on studio type
+          const endDate = studio.name === "Mobile studio service" ? nextFriday : twoWeeksFromNow;
+          
+          // Filter bookings up to the relevant end date
+          const relevantBookings = studio.bookings.filter(booking => 
+            new Date(booking.startTime) <= endDate
+          );
+
           const timeSlots = generateAvailableTimeSlots(
             studio.openingTime, 
             studio.closingTime, 
-            studio.bookings
+            relevantBookings
           );
           
           return {
