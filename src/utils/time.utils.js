@@ -3,48 +3,61 @@
  * @param {string} openingTime - Studio opening time (HH:mm)
  * @param {string} closingTime - Studio closing time (HH:mm)
  * @param {Array} bookings - Array of existing bookings
+ * @param {Date} endDate - The end date to check availability until
  * @returns {Array} Array of time slots with availability status
  */
-export const generateAvailableTimeSlots = (openingTime, closingTime, bookings) => {
-  // Convert opening and closing times to Date objects for the given date
+export const generateAvailableTimeSlots = (openingTime, closingTime, bookings, endDate) => {
+  // Convert opening and closing times to hours for comparison
   const [openHour, openMinute] = openingTime.split(':').map(Number);
   const [closeHour, closeMinute] = closingTime.split(':').map(Number);
 
-  // Get the date from the first booking or use current date
-  const date = bookings.length > 0 
-    ? new Date(bookings[0].startTime).toISOString().split('T')[0]
-    : new Date().toISOString().split('T')[0];
+  // Get today's date at midnight for consistent comparison
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // Create start and end time bounds
-  const startBound = new Date(`${date}T${openingTime}:00`);
-  const endBound = new Date(`${date}T${closingTime}:00`);
-
-  // Generate 1-hour slots
   const slots = [];
-  const slotDuration = 60; // minutes
-  let currentSlot = new Date(startBound);
+  const currentDate = new Date(today);
 
-  while (currentSlot < endBound) {
-    const slotEnd = new Date(currentSlot.getTime() + slotDuration * 60000);
+  // Generate slots for each day from today until endDate
+  while (currentDate <= endDate) {
+    // Set opening and closing times for the current date
+    const dayStart = new Date(currentDate);
+    dayStart.setHours(openHour, openMinute, 0, 0);
     
-    // Check if slot overlaps with any booking
-    const isAvailable = !bookings.some(booking => {
-      const bookingStart = new Date(booking.startTime);
-      const bookingEnd = new Date(booking.endTime);
-      return (
-        (currentSlot >= bookingStart && currentSlot < bookingEnd) ||
-        (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
-        (currentSlot <= bookingStart && slotEnd >= bookingEnd)
-      );
-    });
+    const dayEnd = new Date(currentDate);
+    dayEnd.setHours(closeHour, closeMinute, 0, 0);
 
-    slots.push({
-      start: currentSlot.toISOString(),
-      end: slotEnd.toISOString(),
-      available: isAvailable
-    });
+    // Generate hourly slots for the current day
+    let currentSlot = new Date(dayStart);
+    
+    while (currentSlot < dayEnd) {
+      const slotEnd = new Date(currentSlot.getTime() + 60 * 60 * 1000); // Add 1 hour
+      
+      // Only include future slots
+      if (currentSlot > new Date()) {
+        // Check if slot overlaps with any booking
+        const isAvailable = !bookings.some(booking => {
+          const bookingStart = new Date(booking.startTime);
+          const bookingEnd = new Date(booking.endTime);
+          return (
+            (currentSlot >= bookingStart && currentSlot < bookingEnd) ||
+            (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
+            (currentSlot <= bookingStart && slotEnd >= bookingEnd)
+          );
+        });
 
-    currentSlot = slotEnd;
+        slots.push({
+          start: currentSlot.toISOString(),
+          end: slotEnd.toISOString(),
+          available: isAvailable
+        });
+      }
+      
+      currentSlot = slotEnd;
+    }
+
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
   }
 
   return slots;

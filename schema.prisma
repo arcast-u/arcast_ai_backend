@@ -94,6 +94,7 @@ model Lead {
     fullName          String
     email             String
     phoneNumber       String
+    whatsappNumber    String?   // Optional WhatsApp number
     recordingLocation String?
     bookings          Booking[]
     createdAt         DateTime  @default(now())

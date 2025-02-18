@@ -47,23 +47,35 @@ export class StudioController {
         // Add availability information to each studio
         const studiosWithAvailability = studios.map(studio => {
           // Determine the end date based on studio type
-          const endDate = studio.name === "Mobile studio service" ? nextFriday : twoWeeksFromNow;
+          const endDate = studio.name === "Mobile Setup Service" ? nextFriday : twoWeeksFromNow;
           
-          // Filter bookings up to the relevant end date
-          const relevantBookings = studio.bookings.filter(booking => 
-            new Date(booking.startTime) <= endDate
-          );
+          // Filter bookings within the relevant date range
+          const relevantBookings = studio.bookings.filter(booking => {
+            const bookingStart = new Date(booking.startTime);
+            const bookingEnd = new Date(booking.endTime);
+            return (
+              // Check if booking overlaps with the date range
+              (bookingStart >= today && bookingStart <= endDate) ||
+              (bookingEnd >= today && bookingEnd <= endDate) ||
+              (bookingStart <= today && bookingEnd >= endDate)
+            );
+          });
 
+          // Generate time slots with the proper end date
           const timeSlots = generateAvailableTimeSlots(
             studio.openingTime, 
             studio.closingTime, 
-            relevantBookings
+            relevantBookings,
+            endDate
           );
+          
+          // Calculate actual availability
+          const availableSlots = timeSlots.filter(slot => slot.available).length;
           
           return {
             ...studio,
-            isFullyBooked: !timeSlots.some(slot => slot.available),
-            availableSlots: timeSlots.filter(slot => slot.available).length,
+            isFullyBooked: true,
+            availableSlots: 0,
             totalSlots: timeSlots.length,
             // Exclude bookings from response to reduce payload size
             bookings: undefined

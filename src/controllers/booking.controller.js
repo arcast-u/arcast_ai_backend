@@ -104,7 +104,8 @@ export class BookingController {
             fullName: lead.fullName,
             email: lead.email,
             phoneNumber: lead.phoneNumber,
-            ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation })
+            ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
+            ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
           }
         });
 
@@ -337,6 +338,7 @@ export class BookingController {
           fullName: booking.lead.fullName,
           email: booking.lead.email,
           phoneNumber: booking.lead.phoneNumber,
+          whatsappNumber: booking.lead.whatsappNumber,
           recordingLocation: booking.lead.recordingLocation
         },
         discount: booking.discountCode ? {

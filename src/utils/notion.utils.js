@@ -75,13 +75,9 @@ export async function createNotionBookingEntry(booking) {
           phone_number: booking.lead.phoneNumber
         },
         "Setup": {
-          rich_text: [
-            {
-              text: {
-                content: booking.studio.name
-              }
-            }
-          ]
+          select: {
+            name: booking.studio.name
+          }
         },
         "Additional Services": {
           multi_select: []
@@ -101,7 +97,7 @@ export async function createNotionBookingEntry(booking) {
           }
         },
         "Whatsapp": {
-          phone_number: booking.lead.phoneNumber // Using same phone number as primary contact
+          phone_number: booking.lead.whatsappNumber || booking.lead.phoneNumber // Use whatsappNumber if available, otherwise use phoneNumber
         }
       }
     });

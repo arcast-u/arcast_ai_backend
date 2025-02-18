@@ -85,6 +85,7 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                   - fullName
  *                   - email
  *                   - phoneNumber
+ *                   - whatsappNumber
  *                   - recordingLocation
  *                 properties:
  *                   fullName:
@@ -94,6 +95,9 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                     format: email
  *                   phoneNumber:
  *                     type: string
+ *                   whatsappNumber:
+ *                     type: string
+ *                     description: Optional WhatsApp contact number
  *                   recordingLocation:
  *                     type: string
  *     responses:
