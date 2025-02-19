@@ -13,13 +13,12 @@ export const generateAvailableTimeSlots = (openingTime, closingTime, bookings, t
 
   const slots = [];
 
-  // Set opening and closing times for the target date in Dubai time (UTC+4)
-  const dubaiOffset = 4; // Dubai is UTC+4
+  // Create date objects for start and end times
   const dayStart = new Date(targetDate);
-  dayStart.setHours(openHour - dubaiOffset, openMinute, 0, 0); // Adjust for Dubai time
+  dayStart.setUTCHours(openHour - 4, openMinute, 0, 0); // Dubai is UTC+4
   
   const dayEnd = new Date(targetDate);
-  dayEnd.setHours(closeHour - dubaiOffset, closeMinute, 0, 0); // Adjust for Dubai time
+  dayEnd.setUTCHours(closeHour - 4, closeMinute, 0, 0); // Dubai is UTC+4
 
   // Generate hourly slots for the day
   let currentSlot = new Date(dayStart);
