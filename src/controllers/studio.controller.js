@@ -251,22 +251,34 @@ export class StudioController {
           const requestedDate = new Date(targetDate);
           requestedDate.setHours(0, 0, 0, 0);
 
-          if (isMobileStudio) {
-            if (requestedDate < nextFriday) {
-              return res.json({
-                studioId: studio.id,
-                date: targetDate.toISOString().split('T')[0],
-                timeSlots: [],
-                message: "Mobile Studio Service is only available from Friday onwards"
-              });
-            }
+          // Check if requested date is in the past
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (requestedDate < today) {
+            return res.json({
+              studioId: studio.id,
+              date: targetDate.toISOString().split('T')[0],
+              timeSlots: [],
+              message: "Cannot book slots for past dates"
+            });
+          }
 
+          // Get bookings for the specific date
+          const dayBookings = studio.bookings.filter(booking => {
+            const bookingDate = new Date(booking.startTime);
+            return bookingDate.getFullYear() === requestedDate.getFullYear() &&
+                   bookingDate.getMonth() === requestedDate.getMonth() &&
+                   bookingDate.getDate() === requestedDate.getDate();
+          });
+
+          if (isMobileStudio) {
             // For Mobile Studio Service, show all slots as available
             const timeSlots = generateAvailableTimeSlots(
               studio.openingTime,
               studio.closingTime,
               [], // Empty bookings array since we want to show all slots as available
-              targetDate // Add the target date as endDate
+              requestedDate // Use the requested date
             );
 
             return res.json({
@@ -280,7 +292,8 @@ export class StudioController {
           const timeSlots = generateAvailableTimeSlots(
             studio.openingTime,
             studio.closingTime,
-            studio.bookings
+            dayBookings, // Use the filtered bookings for this specific date
+            requestedDate // Use the requested date
           );
 
           return res.json({

@@ -13,12 +13,12 @@ export const generateAvailableTimeSlots = (openingTime, closingTime, bookings, t
 
   const slots = [];
 
-  // Create date objects for start and end times
+  // Create date objects for start and end times using the target date
   const dayStart = new Date(targetDate);
-  dayStart.setUTCHours(openHour - 4, openMinute, 0, 0); // Dubai is UTC+4
+  dayStart.setHours(openHour, openMinute, 0, 0);
   
   const dayEnd = new Date(targetDate);
-  dayEnd.setUTCHours(closeHour - 4, closeMinute, 0, 0); // Dubai is UTC+4
+  dayEnd.setHours(closeHour, closeMinute, 0, 0);
 
   // Generate hourly slots for the day
   let currentSlot = new Date(dayStart);
@@ -26,25 +26,24 @@ export const generateAvailableTimeSlots = (openingTime, closingTime, bookings, t
   while (currentSlot < dayEnd) {
     const slotEnd = new Date(currentSlot.getTime() + 60 * 60 * 1000); // Add 1 hour
     
-    // Only include future slots
-    if (currentSlot > new Date()) {
-      // Check if slot overlaps with any booking
-      const isAvailable = !bookings.some(booking => {
-        const bookingStart = new Date(booking.startTime);
-        const bookingEnd = new Date(booking.endTime);
-        return (
-          (currentSlot >= bookingStart && currentSlot < bookingEnd) ||
-          (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
-          (currentSlot <= bookingStart && slotEnd >= bookingEnd)
-        );
-      });
+    // Check if slot overlaps with any booking
+    const isAvailable = !bookings.some(booking => {
+      const bookingStart = new Date(booking.startTime);
+      const bookingEnd = new Date(booking.endTime);
+      
+      // Check for any overlap
+      return (
+        (currentSlot >= bookingStart && currentSlot < bookingEnd) ||
+        (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
+        (currentSlot <= bookingStart && slotEnd >= bookingEnd)
+      );
+    });
 
-      slots.push({
-        start: currentSlot.toISOString(),
-        end: slotEnd.toISOString(),
-        available: isAvailable
-      });
-    }
+    slots.push({
+      start: currentSlot.toISOString(),
+      end: slotEnd.toISOString(),
+      available: isAvailable
+    });
     
     currentSlot = slotEnd;
   }

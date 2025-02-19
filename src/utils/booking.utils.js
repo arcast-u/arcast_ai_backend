@@ -54,15 +54,16 @@ export async function validateBookingTime(
   openingTime,
   closingTime
 ) {
-  // Convert UTC booking times to local time for comparison
+  // Convert UTC booking times to Dubai time (UTC+4)
+  const dubaiOffset = 4 * 60; // 4 hours in minutes
   const localStartTime = new Date(startTime);
   const localEndTime = new Date(endTime);
   
-  // Extract hours and minutes for comparison
-  const bookingStart = localStartTime.getUTCHours() * 60 + localStartTime.getUTCMinutes();
-  const bookingEnd = localEndTime.getUTCHours() * 60 + localEndTime.getUTCMinutes();
+  // Extract hours and minutes and adjust for Dubai time
+  const bookingStart = localStartTime.getUTCHours() * 60 + localStartTime.getUTCMinutes() + dubaiOffset;
+  const bookingEnd = localEndTime.getUTCHours() * 60 + localEndTime.getUTCMinutes() + dubaiOffset;
   
-  // Parse studio hours
+  // Parse studio hours (these are already in Dubai time)
   const [openHour, openMinute] = openingTime.split(':').map(Number);
   const [closeHour, closeMinute] = closingTime.split(':').map(Number);
   const studioOpen = openHour * 60 + openMinute;
@@ -75,6 +76,8 @@ export async function validateBookingTime(
     studioCloseMinutes: studioClose,
     localStartTime: localStartTime.toISOString(),
     localEndTime: localEndTime.toISOString(),
+    dubaiStartTime: `${Math.floor(bookingStart/60)}:${bookingStart%60}`,
+    dubaiEndTime: `${Math.floor(bookingEnd/60)}:${bookingEnd%60}`,
     openingTime,
     closingTime
   });
