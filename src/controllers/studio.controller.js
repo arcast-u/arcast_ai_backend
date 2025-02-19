@@ -194,7 +194,8 @@ export class StudioController {
               const timeSlots = generateAvailableTimeSlots(
                 studio.openingTime,
                 studio.closingTime,
-                [] // Empty bookings array since we want to show all slots as available
+                [], // Empty bookings array since we want to show all slots as available
+                targetDate // Add the target date as endDate
               );
 
               monthAvailability.push({
@@ -264,7 +265,8 @@ export class StudioController {
             const timeSlots = generateAvailableTimeSlots(
               studio.openingTime,
               studio.closingTime,
-              [] // Empty bookings array since we want to show all slots as available
+              [], // Empty bookings array since we want to show all slots as available
+              targetDate // Add the target date as endDate
             );
 
             return res.json({
