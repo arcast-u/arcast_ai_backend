@@ -79,6 +79,11 @@ export async function createNotionBookingEntry(booking) {
             name: booking.studio.name
           }
         },
+        "Package": {
+          select: {
+            name: booking.package.name || "Recording Only" // Access name from the package relation
+          }
+        },
         "Additional Services": {
           multi_select: []
         },
@@ -102,8 +107,8 @@ export async function createNotionBookingEntry(booking) {
       }
     });
 
-    console.log('Notion entry created:', response.id);
-    return response.id;
+    console.log('Successfully created Notion entry');
+    return response;
   } catch (error) {
     console.error('Error creating Notion entry:', error);
     throw error;
