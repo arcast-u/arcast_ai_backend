@@ -134,7 +134,7 @@ async function main() {
     // Mobile studio service
     prisma.studio.create({
       data: {
-        name: "Mobile Setup Service",
+        name: "Mobile Studio Service",
         location: "Anywhere in Dubai",
         imageUrl: "https://example.com/studio-mobile.jpg",
         totalSeats: 4,

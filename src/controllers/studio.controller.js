@@ -14,9 +14,9 @@ export class StudioController {
         const twoWeeksFromNow = new Date(today);
         twoWeeksFromNow.setDate(today.getDate() + 14);
 
-        // Get next Friday for mobile studio
-        const nextFriday = new Date(today);
-        nextFriday.setDate(today.getDate() + ((7 - today.getDay() + 5) % 7));
+        // Set target Friday for mobile studio (Feb 21, 2025)
+        const targetFriday = new Date('2025-02-21');
+        targetFriday.setHours(0, 0, 0, 0);
 
         const studios = await prisma.studio.findMany({
           include: {
@@ -47,7 +47,7 @@ export class StudioController {
         // Add availability information to each studio
         const studiosWithAvailability = studios.map(studio => {
           // Determine the end date based on studio type
-          const endDate = studio.name === "Mobile Setup Service" ? nextFriday : twoWeeksFromNow;
+          const endDate = studio.name === "Mobile Studio Service" ? targetFriday : twoWeeksFromNow;
           
           // Filter bookings within the relevant date range
           const relevantBookings = studio.bookings.filter(booking => {
@@ -74,8 +74,10 @@ export class StudioController {
           
           return {
             ...studio,
-            isFullyBooked: true,
-            availableSlots: 0,
+            // Force isFullyBooked to false for Mobile Studio Service
+            isFullyBooked: studio.name === "Mobile Studio Service" ? false : availableSlots === 0,
+            // For Mobile Studio Service, we'll show all slots as available
+            availableSlots: studio.name === "Mobile Studio Service" ? timeSlots.length : availableSlots,
             totalSlots: timeSlots.length,
             // Exclude bookings from response to reduce payload size
             bookings: undefined
@@ -91,8 +93,26 @@ export class StudioController {
     getStudioAvailability = async (req, res) => {
       const { id } = req.params;
       const { date, view = 'month' } = req.query;
-  
+      const { month, year } = req.query;  // Add support for month/year parameters
+
       try {
+        // Determine the date to use
+        let targetDate;
+        if (date) {
+          targetDate = new Date(date);
+        } else if (month && year) {
+          targetDate = new Date(year, month - 1); // Month is 0-based in JavaScript
+        } else {
+          targetDate = new Date();
+        }
+
+        if (isNaN(targetDate.getTime())) {
+          return res.status(400).json({ 
+            error: 'Invalid date format',
+            details: 'Please provide a valid date or month/year combination'
+          });
+        }
+
         // Get studio operating hours
         const studio = await prisma.studio.findUnique({
           where: { id },
@@ -108,18 +128,18 @@ export class StudioController {
                   view === 'month' ? {
                     // For month view, get all bookings in the month
                     startTime: {
-                      gte: new Date(new Date(date).getFullYear(), new Date(date).getMonth(), 1)
+                      gte: new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
                     },
                     endTime: {
-                      lt: new Date(new Date(date).getFullYear(), new Date(date).getMonth() + 1, 1)
+                      lt: new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1)
                     }
                   } : {
                     // For day view, get bookings for specific date
                     startTime: {
-                      gte: new Date(date)
+                      gte: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
                     },
                     endTime: {
-                      lt: new Date(new Date(date).setDate(new Date(date).getDate() + 1))
+                      lt: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1)
                     }
                   }
                 ]
@@ -132,15 +152,21 @@ export class StudioController {
           return res.status(404).json({ error: 'Studio not found' });
         }
 
+        // For Mobile Studio Service, only show availability from next Friday onwards
+        const isMobileStudio = studio.name === "Mobile Studio Service";
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Calculate next Friday
+        const nextFriday = new Date();
+        nextFriday.setDate(nextFriday.getDate() + ((7 - nextFriday.getDay() + 5) % 7));
+        nextFriday.setHours(0, 0, 0, 0);
+
         if (view === 'month') {
           // Get the first and last day of the month
-          const firstDay = new Date(new Date(date).getFullYear(), new Date(date).getMonth(), 1);
-          const lastDay = new Date(new Date(date).getFullYear(), new Date(date).getMonth() + 1, 0);
+          const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+          const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
           const daysInMonth = lastDay.getDate();
-
-          // Get today's date at midnight for comparison
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
 
           // Generate availability for each day
           const monthAvailability = [];
@@ -149,10 +175,10 @@ export class StudioController {
             const currentDate = new Date(firstDay.getFullYear(), firstDay.getMonth(), day);
             currentDate.setHours(0, 0, 0, 0);
             
-            // Skip dates in the past (before today)
-            if (currentDate < today) {
+            // For Mobile Studio Service, mark dates before next Friday as unavailable
+            if (currentDate < today || (isMobileStudio && currentDate < nextFriday)) {
               monthAvailability.push({
-                date: currentDate.toISOString().split('T')[0], // Just return the date part
+                date: currentDate.toISOString().split('T')[0],
                 status: 'past',
                 availableSlots: 0,
                 totalSlots: 0,
@@ -163,7 +189,28 @@ export class StudioController {
               continue;
             }
 
-            // Get bookings for this day
+            // For Mobile Studio Service, show all future slots from Friday as available
+            if (isMobileStudio && currentDate >= nextFriday) {
+              const timeSlots = generateAvailableTimeSlots(
+                studio.openingTime,
+                studio.closingTime,
+                [] // Empty bookings array since we want to show all slots as available
+              );
+
+              monthAvailability.push({
+                date: currentDate.toISOString().split('T')[0],
+                status: 'available',
+                availableSlots: timeSlots.length,
+                totalSlots: timeSlots.length,
+                metadata: {
+                  isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
+                  bookings: 0
+                }
+              });
+              continue;
+            }
+
+            // Get bookings for this day (for non-mobile studios)
             const dayBookings = studio.bookings.filter(booking => {
               const bookingDate = new Date(booking.startTime);
               return bookingDate.getDate() === day &&
@@ -181,7 +228,7 @@ export class StudioController {
             const availableSlots = timeSlots.filter(slot => slot.available).length;
 
             monthAvailability.push({
-              date: currentDate.toISOString().split('T')[0], // Just return the date part
+              date: currentDate.toISOString().split('T')[0],
               status: availableSlots === 0 ? 'fully-booked' : 
                      availableSlots < timeSlots.length ? 'partially-booked' : 'available',
               availableSlots,
@@ -195,11 +242,39 @@ export class StudioController {
 
           return res.json({
             studioId: studio.id,
-            month: firstDay.toISOString().split('T')[0], // Just return the date part
+            month: firstDay.toISOString().split('T')[0],
             availability: monthAvailability
           });
         } else {
-          // Day view - return detailed time slots
+          // Day view - check if the requested date is before next Friday for Mobile Studio
+          const requestedDate = new Date(targetDate);
+          requestedDate.setHours(0, 0, 0, 0);
+
+          if (isMobileStudio) {
+            if (requestedDate < nextFriday) {
+              return res.json({
+                studioId: studio.id,
+                date: targetDate.toISOString().split('T')[0],
+                timeSlots: [],
+                message: "Mobile Studio Service is only available from Friday onwards"
+              });
+            }
+
+            // For Mobile Studio Service, show all slots as available
+            const timeSlots = generateAvailableTimeSlots(
+              studio.openingTime,
+              studio.closingTime,
+              [] // Empty bookings array since we want to show all slots as available
+            );
+
+            return res.json({
+              studioId: studio.id,
+              date: targetDate.toISOString().split('T')[0],
+              timeSlots
+            });
+          }
+
+          // For non-mobile studios, return detailed time slots with actual bookings
           const timeSlots = generateAvailableTimeSlots(
             studio.openingTime,
             studio.closingTime,
@@ -208,7 +283,7 @@ export class StudioController {
 
           return res.json({
             studioId: studio.id,
-            date: new Date(date).toISOString().split('T')[0], // Just return the date part
+            date: targetDate.toISOString().split('T')[0],
             timeSlots
           });
         }
