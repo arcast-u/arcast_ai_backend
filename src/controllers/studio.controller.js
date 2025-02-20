@@ -93,23 +93,15 @@ export class StudioController {
     getStudioAvailability = async (req, res) => {
       const { id } = req.params;
       const { date, view = 'month' } = req.query;
-      const { month, year } = req.query;  // Add support for month/year parameters
 
       try {
         // Determine the date to use
-        let targetDate;
-        if (date) {
-          targetDate = new Date(date);
-        } else if (month && year) {
-          targetDate = new Date(year, month - 1); // Month is 0-based in JavaScript
-        } else {
-          targetDate = new Date();
-        }
-
+        let targetDate = new Date(date);
+        
         if (isNaN(targetDate.getTime())) {
           return res.status(400).json({ 
             error: 'Invalid date format',
-            details: 'Please provide a valid date or month/year combination'
+            details: 'Please provide a valid date in YYYY-MM-DD format'
           });
         }
 
@@ -136,10 +128,10 @@ export class StudioController {
                   } : {
                     // For day view, get bookings for specific date
                     startTime: {
-                      gte: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
+                      gte: new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0))
                     },
                     endTime: {
-                      lt: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1)
+                      lt: new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1, 0, 0, 0))
                     }
                   }
                 ]
@@ -147,9 +139,48 @@ export class StudioController {
             }
           }
         });
-  
+
         if (!studio) {
-          return res.status(404).json({ error: 'Studio not found' });
+          return res.status(404).json({
+            error: 'Studio not found'
+          });
+        }
+
+        if (view === 'day') {
+          // Check if requested date is in the past
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          if (targetDate < today) {
+            return res.json({
+              studioId: studio.id,
+              date: targetDate.toISOString().split('T')[0],
+              timeSlots: [],
+              message: "Cannot book slots for past dates"
+            });
+          }
+
+          // Get bookings for the specific date
+          const dayBookings = studio.bookings.filter(booking => {
+            const bookingDate = new Date(booking.startTime);
+            return bookingDate.getUTCFullYear() === targetDate.getUTCFullYear() &&
+                   bookingDate.getUTCMonth() === targetDate.getUTCMonth() &&
+                   bookingDate.getUTCDate() === targetDate.getUTCDate();
+          });
+
+          // Generate time slots with actual bookings
+          const timeSlots = generateAvailableTimeSlots(
+            studio.openingTime,
+            studio.closingTime,
+            dayBookings,
+            targetDate
+          );
+
+          return res.json({
+            studioId: studio.id,
+            date: targetDate.toISOString().split('T')[0],
+            timeSlots
+          });
         }
 
         // For Mobile Studio Service, only show availability from next Friday onwards
@@ -293,7 +324,7 @@ export class StudioController {
             studio.openingTime,
             studio.closingTime,
             dayBookings, // Use the filtered bookings for this specific date
-            requestedDate // Use the requested date
+            targetDate // Use the requested date
           );
 
           return res.json({
@@ -304,9 +335,9 @@ export class StudioController {
         }
       } catch (error) {
         console.error('Error getting studio availability:', error);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Failed to get studio availability',
-          details: error.message 
+          details: error.message
         });
       }
     }

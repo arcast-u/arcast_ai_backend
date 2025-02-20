@@ -13,32 +13,48 @@ export const generateAvailableTimeSlots = (openingTime, closingTime, bookings, t
 
   const slots = [];
 
-  // Create date objects for start and end times using the target date in Dubai timezone
-  const dubaiOffset = 4; // Dubai is UTC+4
-  const targetDateStr = targetDate.toISOString().split('T')[0]; // Get just the date part
-
-  // Create start time in Dubai timezone
-  const dayStart = new Date(`${targetDateStr}T${openingTime}:00+04:00`);
+  // Ensure targetDate is a Date object and set to midnight UTC
+  const targetDateObj = new Date(targetDate);
   
-  // Create end time in Dubai timezone
-  const dayEnd = new Date(`${targetDateStr}T${closingTime}:00+04:00`);
+  // Create start and end times in UTC for the target date
+  // Since Dubai is UTC+4, we need to subtract 4 hours from the local time
+  const dayStart = new Date(Date.UTC(
+    targetDateObj.getUTCFullYear(),
+    targetDateObj.getUTCMonth(),
+    targetDateObj.getUTCDate(),
+    openHour - 4, // Convert from Dubai time to UTC
+    openMinute
+  ));
+
+  const dayEnd = new Date(Date.UTC(
+    targetDateObj.getUTCFullYear(),
+    targetDateObj.getUTCMonth(),
+    targetDateObj.getUTCDate(),
+    closeHour - 4, // Convert from Dubai time to UTC
+    closeMinute
+  ));
 
   // Generate hourly slots for the day
   let currentSlot = new Date(dayStart);
   
   while (currentSlot < dayEnd) {
     const slotEnd = new Date(currentSlot.getTime() + 60 * 60 * 1000); // Add 1 hour
-    
+
     // Check if slot overlaps with any booking
     const isAvailable = !bookings.some(booking => {
       const bookingStart = new Date(booking.startTime);
       const bookingEnd = new Date(booking.endTime);
-      
-      // Check for any overlap
+
+      // Convert all times to UTC timestamps for comparison
+      const slotStartTime = currentSlot.getTime();
+      const slotEndTime = slotEnd.getTime();
+      const bookingStartTime = bookingStart.getTime();
+      const bookingEndTime = bookingEnd.getTime();
+
       return (
-        (currentSlot >= bookingStart && currentSlot < bookingEnd) ||
-        (slotEnd > bookingStart && slotEnd <= bookingEnd) ||
-        (currentSlot <= bookingStart && slotEnd >= bookingEnd)
+        (slotStartTime >= bookingStartTime && slotStartTime < bookingEndTime) ||
+        (slotEndTime > bookingStartTime && slotEndTime <= bookingEndTime) ||
+        (slotStartTime <= bookingStartTime && slotEndTime >= bookingEndTime)
       );
     });
 
