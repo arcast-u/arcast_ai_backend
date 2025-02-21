@@ -99,15 +99,25 @@ export class BookingController {
           where: { email: lead.email }
         });
 
-        const bookingLead = existingLead || await tx.lead.create({
-          data: {
-            fullName: lead.fullName,
-            email: lead.email,
-            phoneNumber: lead.phoneNumber,
-            ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
-            ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
-          }
-        });
+        const bookingLead = existingLead 
+          ? await tx.lead.update({
+              where: { id: existingLead.id },
+              data: {
+                fullName: lead.fullName,
+                phoneNumber: lead.phoneNumber,
+                ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
+                ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
+              }
+            })
+          : await tx.lead.create({
+              data: {
+                fullName: lead.fullName,
+                email: lead.email,
+                phoneNumber: lead.phoneNumber,
+                ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
+                ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
+              }
+            });
 
         // 7. Create booking
         const booking = await tx.booking.create({
@@ -147,8 +157,7 @@ export class BookingController {
       try {
         const notionEntryId = await createNotionBookingEntry(result);
         res.status(201).json({
-          ...result,
-          notionEntryId
+          ...result
         });
       } catch (notionError) {
         console.error('Failed to create Notion entry:', notionError);
