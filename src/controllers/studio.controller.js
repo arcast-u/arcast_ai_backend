@@ -193,6 +193,12 @@ export class StudioController {
           // Set today to midnight for consistent comparison
           const today = new Date();
           today.setHours(0, 0, 0, 0);
+          
+          // Get current time in Dubai timezone
+          const dubaiOffset = 4; // Dubai is UTC+4
+          const nowInDubai = new Date(new Date().getTime() + (dubaiOffset * 60 * 60 * 1000));
+          const todayInDubai = new Date(nowInDubai);
+          todayInDubai.setHours(0, 0, 0, 0);
 
           // Generate availability for each day
           const monthAvailability = [];
@@ -201,14 +207,13 @@ export class StudioController {
             const currentDate = new Date(firstDay.getFullYear(), firstDay.getMonth(), day);
             currentDate.setHours(0, 0, 0, 0);
             
-            // Get current time for today's comparisons
-            const now = new Date();
-            const isToday = currentDate.getFullYear() === now.getFullYear() &&
-                          currentDate.getMonth() === now.getMonth() &&
-                          currentDate.getDate() === now.getDate();
+            // Check if the current date is today in Dubai timezone
+            const isToday = currentDate.getFullYear() === todayInDubai.getFullYear() &&
+                          currentDate.getMonth() === todayInDubai.getMonth() &&
+                          currentDate.getDate() === todayInDubai.getDate();
 
             const isTomorrow = (() => {
-              const tomorrow = new Date(now);
+              const tomorrow = new Date(todayInDubai);
               tomorrow.setDate(tomorrow.getDate() + 1);
               return currentDate.getFullYear() === tomorrow.getFullYear() &&
                      currentDate.getMonth() === tomorrow.getMonth() &&
@@ -216,7 +221,7 @@ export class StudioController {
             })();
 
             // For dates before today, mark as past
-            if (currentDate.getTime() < today.getTime() && !isToday) {
+            if (currentDate.getTime() < todayInDubai.getTime() && !isToday) {
               monthAvailability.push({
                 date: currentDate.toISOString().split('T')[0],
                 status: 'past',
@@ -249,11 +254,11 @@ export class StudioController {
             const availableSlots = timeSlots.filter(slot => {
               if (!isToday) return slot.available;
               const slotTime = new Date(slot.start);
-              return slot.available && slotTime > now;
+              return slot.available && slotTime > nowInDubai;
             }).length;
 
             const totalSlots = isToday ? 
-              timeSlots.filter(slot => new Date(slot.start) > now).length : 
+              timeSlots.filter(slot => new Date(slot.start) > nowInDubai).length : 
               timeSlots.length;
 
             monthAvailability.push({
@@ -280,11 +285,13 @@ export class StudioController {
           const requestedDate = new Date(targetDate);
           requestedDate.setHours(0, 0, 0, 0);
 
-          // Check if requested date is in the past
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          // Check if requested date is in the past using Dubai timezone
+          const dubaiOffset = 4; // Dubai is UTC+4
+          const nowInDubai = new Date(new Date().getTime() + (dubaiOffset * 60 * 60 * 1000));
+          const todayInDubai = new Date(nowInDubai);
+          todayInDubai.setHours(0, 0, 0, 0);
           
-          if (requestedDate < today) {
+          if (requestedDate < todayInDubai) {
             return res.json({
               studioId: studio.id,
               date: targetDate.toISOString().split('T')[0],
@@ -309,10 +316,19 @@ export class StudioController {
             targetDate
           );
 
+          // If it's today, filter out past slots
+          const isToday = requestedDate.getFullYear() === todayInDubai.getFullYear() &&
+                        requestedDate.getMonth() === todayInDubai.getMonth() &&
+                        requestedDate.getDate() === todayInDubai.getDate();
+          
+          const filteredTimeSlots = isToday ? 
+            timeSlots.filter(slot => new Date(slot.start) > nowInDubai) : 
+            timeSlots;
+
           return res.json({
             studioId: studio.id,
             date: targetDate.toISOString().split('T')[0],
-            timeSlots
+            timeSlots: filteredTimeSlots
           });
         }
       } catch (error) {

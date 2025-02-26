@@ -7,25 +7,50 @@
  * @returns {Array} Array of time slots with availability status
  */
 export const generateAvailableTimeSlots = (openingTime, closingTime, bookings, targetDate) => {
-  // Convert opening and closing times to hours for comparison
   const [openHour, openMinute] = openingTime.split(':').map(Number);
   const [closeHour, closeMinute] = closingTime.split(':').map(Number);
 
-  const slots = [];
+  // Get current time in Dubai timezone (UTC+4)
+  const now = new Date();
+  const dubaiOffset = 4; // Dubai is UTC+4
+  const currentDubaiTime = new Date(now.getTime() + (dubaiOffset * 60 * 60 * 1000));
+  
+  // Check if targetDate is today
+  const isToday = new Date(targetDate).toDateString() === currentDubaiTime.toDateString();
 
-  // Ensure targetDate is a Date object and set to midnight UTC
   const targetDateObj = new Date(targetDate);
   
-  // Create start and end times in UTC for the target date
-  // Since Dubai is UTC+4, we need to subtract 4 hours from the local time
+  // Create start time - if it's today, use current hour (rounded up to next hour)
+  let effectiveStartHour = openHour;
+  let effectiveStartMinute = openMinute;
+  
+  if (isToday) {
+    const currentHour = currentDubaiTime.getUTCHours();
+    const currentMinute = currentDubaiTime.getUTCMinutes();
+    
+    // Round up to the next hour if we have minutes
+    effectiveStartHour = currentMinute > 0 ? currentHour + 1 : currentHour;
+    effectiveStartMinute = 0;
+    
+    // For today, use the later of the opening time or current time
+    effectiveStartHour = Math.max(effectiveStartHour, openHour);
+    if (effectiveStartHour === openHour) {
+      effectiveStartMinute = Math.max(currentMinute, openMinute);
+    }
+  }
+
   const dayStart = new Date(Date.UTC(
     targetDateObj.getUTCFullYear(),
     targetDateObj.getUTCMonth(),
     targetDateObj.getUTCDate(),
-    openHour - 4, // Convert from Dubai time to UTC
-    openMinute
+    effectiveStartHour - 4, // Convert from Dubai time to UTC
+    effectiveStartMinute
   ));
 
+  const slots = [];
+
+  // Create end time in UTC for the target date
+  // Since Dubai is UTC+4, we need to subtract 4 hours from the local time
   const dayEnd = new Date(Date.UTC(
     targetDateObj.getUTCFullYear(),
     targetDateObj.getUTCMonth(),
