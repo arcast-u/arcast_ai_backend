@@ -95,29 +95,43 @@ export class BookingController {
         const totalCost = costAfterDiscount + vatAmount;
 
         // 6. Create or get lead
-        const existingLead = await tx.lead.findFirst({
-          where: { email: lead.email }
-        });
+        let bookingLead;
+        if (lead.email) {
+          // If email is provided, try to find existing lead
+          const existingLead = await tx.lead.findFirst({
+            where: { email: lead.email }
+          });
 
-        const bookingLead = existingLead 
-          ? await tx.lead.update({
-              where: { id: existingLead.id },
-              data: {
-                fullName: lead.fullName,
-                phoneNumber: lead.phoneNumber,
-                ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
-                ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
-              }
-            })
-          : await tx.lead.create({
-              data: {
-                fullName: lead.fullName,
-                email: lead.email,
-                phoneNumber: lead.phoneNumber,
-                ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
-                ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
-              }
-            });
+          bookingLead = existingLead 
+            ? await tx.lead.update({
+                where: { id: existingLead.id },
+                data: {
+                  fullName: lead.fullName,
+                  phoneNumber: lead.phoneNumber,
+                  ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
+                  ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
+                }
+              })
+            : await tx.lead.create({
+                data: {
+                  fullName: lead.fullName,
+                  email: lead.email,
+                  phoneNumber: lead.phoneNumber,
+                  ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
+                  ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
+                }
+              });
+        } else {
+          // If no email, create new lead without email
+          bookingLead = await tx.lead.create({
+            data: {
+              fullName: lead.fullName,
+              phoneNumber: lead.phoneNumber,
+              ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
+              ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
+            }
+          });
+        }
 
         // 7. Create booking
         const booking = await tx.booking.create({

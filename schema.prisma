@@ -92,7 +92,7 @@ model Booking {
 model Lead {
     id                String    @id @default(uuid())
     fullName          String
-    email             String
+    email             String?   // Made optional
     phoneNumber       String
     whatsappNumber    String?   // Optional WhatsApp number
     recordingLocation String?

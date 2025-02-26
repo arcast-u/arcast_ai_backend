@@ -8,14 +8,16 @@ export const validateBookingRequest = (req, res, next) => {
     throw new ValidationError('Missing required booking fields');
   }
 
-  if (!lead.email || !lead.fullName || !lead.phoneNumber) {
-    throw new ValidationError('Missing required lead information');
+  if (!lead.fullName || !lead.phoneNumber) {
+    throw new ValidationError('Missing required lead information: fullName and phoneNumber are required');
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(lead.email)) {
-    throw new ValidationError('Invalid email format');
+  // Validate email format if provided
+  if (lead.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(lead.email)) {
+      throw new ValidationError('Invalid email format');
+    }
   }
 
   // Validate duration
@@ -79,6 +81,34 @@ export const validateCreateStudioRequest = (req, res, next) => {
         throw new ValidationError(`Perks must be an array in package at index ${index}`);
       }
     });
+  }
+
+  next();
+};
+
+export const validateCreateLeadRequest = (req, res, next) => {
+  const { fullName, email, phoneNumber } = req.body;
+
+  // Check required fields
+  if (!fullName || !email || !phoneNumber) {
+    throw new ValidationError('Missing required fields: fullName, email, and phoneNumber are required');
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new ValidationError('Invalid email format');
+  }
+
+  // Validate phone number format (basic validation, can be enhanced based on requirements)
+  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  if (!phoneRegex.test(phoneNumber.replace(/[\s-]/g, ''))) {
+    throw new ValidationError('Invalid phone number format');
+  }
+
+  // Validate fullName length
+  if (fullName.trim().length < 2) {
+    throw new ValidationError('Full name must be at least 2 characters long');
   }
 
   next();

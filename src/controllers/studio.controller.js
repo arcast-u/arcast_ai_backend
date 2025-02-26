@@ -183,21 +183,16 @@ export class StudioController {
           });
         }
 
-        // For Mobile Studio Service, only show availability from next Friday onwards
-        const isMobileStudio = studio.name === "Mobile Studio Service";
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        // Calculate next Friday
-        const nextFriday = new Date();
-        nextFriday.setDate(nextFriday.getDate() + ((7 - nextFriday.getDay() + 5) % 7));
-        nextFriday.setHours(0, 0, 0, 0);
-
         if (view === 'month') {
           // Get the first and last day of the month
           const firstDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+          firstDay.setHours(0, 0, 0, 0);
           const lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
           const daysInMonth = lastDay.getDate();
+
+          // Set today to midnight for consistent comparison
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
           // Generate availability for each day
           const monthAvailability = [];
@@ -206,8 +201,22 @@ export class StudioController {
             const currentDate = new Date(firstDay.getFullYear(), firstDay.getMonth(), day);
             currentDate.setHours(0, 0, 0, 0);
             
-            // For Mobile Studio Service, mark dates before next Friday as unavailable
-            if (currentDate < today || (isMobileStudio && currentDate < nextFriday)) {
+            // Get current time for today's comparisons
+            const now = new Date();
+            const isToday = currentDate.getFullYear() === now.getFullYear() &&
+                          currentDate.getMonth() === now.getMonth() &&
+                          currentDate.getDate() === now.getDate();
+
+            const isTomorrow = (() => {
+              const tomorrow = new Date(now);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              return currentDate.getFullYear() === tomorrow.getFullYear() &&
+                     currentDate.getMonth() === tomorrow.getMonth() &&
+                     currentDate.getDate() === tomorrow.getDate();
+            })();
+
+            // For dates before today, mark as past
+            if (currentDate.getTime() < today.getTime() && !isToday) {
               monthAvailability.push({
                 date: currentDate.toISOString().split('T')[0],
                 status: 'past',
@@ -220,29 +229,7 @@ export class StudioController {
               continue;
             }
 
-            // For Mobile Studio Service, show all future slots from Friday as available
-            if (isMobileStudio && currentDate >= nextFriday) {
-              const timeSlots = generateAvailableTimeSlots(
-                studio.openingTime,
-                studio.closingTime,
-                [], // Empty bookings array since we want to show all slots as available
-                targetDate // Add the target date as endDate
-              );
-
-              monthAvailability.push({
-                date: currentDate.toISOString().split('T')[0],
-                status: 'available',
-                availableSlots: timeSlots.length,
-                totalSlots: timeSlots.length,
-                metadata: {
-                  isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
-                  bookings: 0
-                }
-              });
-              continue;
-            }
-
-            // Get bookings for this day (for non-mobile studios)
+            // Get bookings for this day
             const dayBookings = studio.bookings.filter(booking => {
               const bookingDate = new Date(booking.startTime);
               return bookingDate.getDate() === day &&
@@ -254,17 +241,28 @@ export class StudioController {
             const timeSlots = generateAvailableTimeSlots(
               studio.openingTime,
               studio.closingTime,
-              dayBookings
+              dayBookings,
+              currentDate
             );
 
-            const availableSlots = timeSlots.filter(slot => slot.available).length;
+            // For today, filter out past time slots
+            const availableSlots = timeSlots.filter(slot => {
+              if (!isToday) return slot.available;
+              const slotTime = new Date(slot.start);
+              return slot.available && slotTime > now;
+            }).length;
+
+            const totalSlots = isToday ? 
+              timeSlots.filter(slot => new Date(slot.start) > now).length : 
+              timeSlots.length;
 
             monthAvailability.push({
               date: currentDate.toISOString().split('T')[0],
-              status: availableSlots === 0 ? 'fully-booked' : 
-                     availableSlots < timeSlots.length ? 'partially-booked' : 'available',
+              status: availableSlots === 0 ? 
+                     (totalSlots === 0 ? 'past' : 'fully-booked') : 
+                     availableSlots < totalSlots ? 'partially-booked' : 'available',
               availableSlots,
-              totalSlots: timeSlots.length,
+              totalSlots,
               metadata: {
                 isWeekend: currentDate.getDay() === 0 || currentDate.getDay() === 6,
                 bookings: dayBookings.length
@@ -278,7 +276,7 @@ export class StudioController {
             availability: monthAvailability
           });
         } else {
-          // Day view - check if the requested date is before next Friday for Mobile Studio
+          // Day view
           const requestedDate = new Date(targetDate);
           requestedDate.setHours(0, 0, 0, 0);
 
@@ -303,28 +301,12 @@ export class StudioController {
                    bookingDate.getDate() === requestedDate.getDate();
           });
 
-          if (isMobileStudio) {
-            // For Mobile Studio Service, show all slots as available
-            const timeSlots = generateAvailableTimeSlots(
-              studio.openingTime,
-              studio.closingTime,
-              [], // Empty bookings array since we want to show all slots as available
-              requestedDate // Use the requested date
-            );
-
-            return res.json({
-              studioId: studio.id,
-              date: targetDate.toISOString().split('T')[0],
-              timeSlots
-            });
-          }
-
-          // For non-mobile studios, return detailed time slots with actual bookings
+          // Generate time slots with actual bookings
           const timeSlots = generateAvailableTimeSlots(
             studio.openingTime,
             studio.closingTime,
-            dayBookings, // Use the filtered bookings for this specific date
-            targetDate // Use the requested date
+            dayBookings,
+            targetDate
           );
 
           return res.json({
