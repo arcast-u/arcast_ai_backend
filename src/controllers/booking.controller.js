@@ -4,6 +4,8 @@ import { calculateBaseCost, calculateTotalCostWithDiscount, validateBookingTime 
 import { ValidationError } from '../errors/custom.errors.js';
 import { calculateDiscountAmount, validateDiscountCode } from '../utils/discount.utils.js';
 import { createNotionBookingEntry } from '../utils/notion.utils.js';
+import { sendWebhookNotification } from '../utils/webhook.utils.js';
+import { WEBHOOK_CONFIG } from '../config/webhook.config.js';
 
 export class BookingController {
   createBooking = async (req, res) => {
@@ -38,17 +40,17 @@ export class BookingController {
         const startDateTime = new Date(startTime);
         const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 60 * 1000);
 
-        console.log('Booking time validation:', {
-          studioId,
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
-          openingTime: studio.openingTime,
-          closingTime: studio.closingTime,
-          existingBookings: studio.bookings.map(b => ({
-            start: b.startTime.toISOString(),
-            end: b.endTime.toISOString()
-          }))
-        });
+        // console.log('Booking time validation:', {
+        //   studioId,
+        //   startTime: startDateTime.toISOString(),
+        //   endTime: endDateTime.toISOString(),
+        //   openingTime: studio.openingTime,
+        //   closingTime: studio.closingTime,
+        //   existingBookings: studio.bookings.map(b => ({
+        //     start: b.startTime.toISOString(),
+        //     end: b.endTime.toISOString()
+        //   }))
+        // });
         const isTimeValid = await validateBookingTime(
           tx,
           studioId,
@@ -170,11 +172,43 @@ export class BookingController {
       // Create Notion entry after successful booking
       try {
         const notionEntryId = await createNotionBookingEntry(result);
+        
+        // Send webhook notification
+        if (WEBHOOK_CONFIG.TRIGGER_DEV.ENABLED) {
+          try {
+            const webhookResponse = await sendWebhookNotification(
+              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
+              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
+              result
+            );
+            console.log('Webhook notification sent successfully:', webhookResponse);
+          } catch (webhookError) {
+            console.error('Failed to send webhook notification:', webhookError);
+            // Don't fail the request if webhook fails
+          }
+        }
+        
         res.status(201).json({
           ...result
         });
       } catch (notionError) {
         console.error('Failed to create Notion entry:', notionError);
+        
+        // Still try to send webhook notification even if Notion fails
+        if (WEBHOOK_CONFIG.TRIGGER_DEV.ENABLED) {
+          try {
+            const webhookResponse = await sendWebhookNotification(
+              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
+              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
+              result
+            );
+            console.log('Webhook notification sent successfully:', webhookResponse);
+          } catch (webhookError) {
+            console.error('Failed to send webhook notification:', webhookError);
+            // Don't fail the request if webhook fails
+          }
+        }
+        
         // Still return success since booking was created
         res.status(201).json({
           ...result,

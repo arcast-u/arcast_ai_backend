@@ -69,18 +69,18 @@ export async function validateBookingTime(
   const studioOpen = openHour * 60 + openMinute;
   const studioClose = closeHour * 60 + closeMinute;
 
-  console.log('Time validation details:', {
-    bookingStartMinutes: bookingStart,
-    bookingEndMinutes: bookingEnd,
-    studioOpenMinutes: studioOpen,
-    studioCloseMinutes: studioClose,
-    localStartTime: localStartTime.toISOString(),
-    localEndTime: localEndTime.toISOString(),
-    dubaiStartTime: `${Math.floor(bookingStart/60)}:${bookingStart%60}`,
-    dubaiEndTime: `${Math.floor(bookingEnd/60)}:${bookingEnd%60}`,
-    openingTime,
-    closingTime
-  });
+  // console.log('Time validation details:', {
+  //   bookingStartMinutes: bookingStart,
+  //   bookingEndMinutes: bookingEnd,
+  //   studioOpenMinutes: studioOpen,
+  //   studioCloseMinutes: studioClose,
+  //   localStartTime: localStartTime.toISOString(),
+  //   localEndTime: localEndTime.toISOString(),
+  //   dubaiStartTime: `${Math.floor(bookingStart/60)}:${bookingStart%60}`,
+  //   dubaiEndTime: `${Math.floor(bookingEnd/60)}:${bookingEnd%60}`,
+  //   openingTime,
+  //   closingTime
+  // });
 
   // Check if booking is within operating hours
   if (bookingStart < studioOpen || bookingEnd > studioClose) {

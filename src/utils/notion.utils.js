@@ -13,7 +13,7 @@ async function logDatabaseSchema() {
     const response = await notion.databases.retrieve({
       database_id: DATABASE_ID
     });
-    console.log('Database schema:', JSON.stringify(response.properties, null, 2));
+    // console.log('Database schema:', JSON.stringify(response.properties, null, 2));
     return response.properties;
   } catch (error) {
     console.error('Error retrieving database schema:', error);
@@ -26,7 +26,7 @@ export async function createNotionBookingEntry(booking) {
   try {
     // First, let's log the database schema
     const schema = await logDatabaseSchema();
-    console.log('Creating entry with booking:', JSON.stringify(booking, null, 2));
+    // console.log('Creating entry with booking:', JSON.stringify(booking, null, 2));
 
     const response = await notion.pages.create({
       parent: {
