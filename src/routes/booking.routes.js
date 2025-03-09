@@ -11,14 +11,14 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *       properties:
  *         code:
  *           type: string
- *           description: The discount code (e.g., "WELCOME10")
+ *           description: "The discount code (e.g., \"WELCOME10\")"
  *         type:
  *           type: string
  *           enum: [PERCENTAGE, FIXED_AMOUNT]
  *           description: Type of discount - percentage off or fixed amount
  *         value:
  *           type: number
- *           description: Value of the discount (percentage or fixed amount)
+ *           description: "Value of the discount (percentage or fixed amount)"
  *         minAmount:
  *           type: number
  *           description: Minimum booking amount required to use this code
@@ -99,6 +99,22 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                   recordingLocation:
  *                     type: string
  *                     description: Optional recording location
+ *               additionalServices:
+ *                 type: array
+ *                 description: Optional additional services to add to the booking
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - id
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                       description: ID of the additional service
+ *                     quantity:
+ *                       type: integer
+ *                       default: 1
+ *                       description: Quantity of the additional service
  *     responses:
  *       201:
  *         description: Booking created successfully
@@ -119,6 +135,31 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                 vatAmount:
  *                   type: number
  *                   description: VAT amount
+ *                 additionalServices:
+ *                   type: array
+ *                   description: Additional services added to the booking
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       quantity:
+ *                         type: integer
+ *                       price:
+ *                         type: number
+ *                       service:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           title:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *                           description:
+ *                             type: string
  *       400:
  *         description: Invalid request data or discount code
  *       500:
@@ -210,16 +251,16 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                 type:
  *                   type: string
  *                   enum: [PERCENTAGE, FIXED_AMOUNT]
- *                   description: Type of discount (only if valid is true)
+ *                   description: "Type of discount (only if valid is true)"
  *                 value:
  *                   type: number
- *                   description: Discount value (only if valid is true)
+ *                   description: "Discount value (only if valid is true)"
  *                 minAmount:
  *                   type: number
- *                   description: Minimum booking amount required (only if valid is true)
+ *                   description: "Minimum booking amount required (only if valid is true)"
  *                 message:
  *                   type: string
- *                   description: Error message (only if valid is false)
+ *                   description: "Error message (only if valid is false)"
  */
 
 const router = Router();

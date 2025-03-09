@@ -69,24 +69,25 @@ enum DiscountType {
 }
 
 model Booking {
-    id              String    @id @default(uuid())
-    startTime       DateTime
-    endTime         DateTime
-    numberOfSeats   Int
-    totalCost       Decimal   @db.Decimal(10, 2)
-    vatAmount       Decimal   @db.Decimal(10, 2)
-    discountAmount  Decimal?  @db.Decimal(10, 2)
-    status          BookingStatus @default(PENDING)
-    studioId        String
-    studio          Studio    @relation(fields: [studioId], references: [id])
-    packageId       String
-    package         StudioPackage @relation(fields: [packageId], references: [id])
-    leadId          String
-    lead            Lead      @relation(fields: [leadId], references: [id])
-    discountCodeId  String?
-    discountCode    DiscountCode?  @relation(fields: [discountCodeId], references: [id])
-    createdAt       DateTime  @default(now())
-    updatedAt       DateTime  @updatedAt
+    id                  String    @id @default(uuid())
+    startTime           DateTime
+    endTime             DateTime
+    numberOfSeats       Int
+    totalCost           Decimal   @db.Decimal(10, 2)
+    vatAmount           Decimal   @db.Decimal(10, 2)
+    discountAmount      Decimal?  @db.Decimal(10, 2)
+    status              BookingStatus @default(PENDING)
+    studioId            String
+    studio              Studio    @relation(fields: [studioId], references: [id])
+    packageId           String
+    package             StudioPackage @relation(fields: [packageId], references: [id])
+    leadId              String
+    lead                Lead      @relation(fields: [leadId], references: [id])
+    discountCodeId      String?
+    discountCode        DiscountCode?  @relation(fields: [discountCodeId], references: [id])
+    additionalServices  BookingAdditionalService[]
+    createdAt           DateTime  @default(now())
+    updatedAt           DateTime  @updatedAt
 }
 
 model Lead {
@@ -106,4 +107,44 @@ enum BookingStatus {
     CONFIRMED
     CANCELLED
     COMPLETED
+}
+
+enum AdditionalServiceType {
+    STANDARD_EDIT_SHORT_FORM
+    CUSTOM_EDIT_SHORT_FORM
+    STANDARD_EDIT_LONG_FORM
+    CUSTOM_EDIT_LONG_FORM
+    LIVE_VIDEO_CUTTING
+    SUBTITLES
+    TELEPROMPTER_SUPPORT
+}
+
+model AdditionalService {
+    id              String    @id @default(uuid())
+    title           String
+    type            AdditionalServiceType
+    price           Decimal   @db.Decimal(10, 2)
+    currency        String    @default("AED")
+    count           Int       @default(1)
+    description     String
+    imageUrls       String[]  // Array of image URLs
+    videoUrl        String?   // Optional video URL
+    isActive        Boolean   @default(true)
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
+    bookingServices BookingAdditionalService[]
+}
+
+model BookingAdditionalService {
+    id                  String            @id @default(uuid())
+    bookingId           String
+    booking             Booking           @relation(fields: [bookingId], references: [id])
+    additionalServiceId String
+    additionalService   AdditionalService @relation(fields: [additionalServiceId], references: [id])
+    quantity            Int               @default(1)
+    price               Decimal           @db.Decimal(10, 2)
+    createdAt           DateTime          @default(now())
+    updatedAt           DateTime          @updatedAt
+
+    @@unique([bookingId, additionalServiceId])
 }

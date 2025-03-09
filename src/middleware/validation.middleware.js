@@ -2,7 +2,7 @@ import { ValidationError } from '../errors/custom.errors.js';
 import { MAX_BOOKING_HOURS } from '../config/constants.config.js';
 
 export const validateBookingRequest = (req, res, next) => {
-  const { studioId, packageId, numberOfSeats, startTime, duration, lead } = req.body;
+  const { studioId, packageId, numberOfSeats, startTime, duration, lead, additionalServices } = req.body;
 
   if (!studioId || !packageId || !numberOfSeats || !startTime || !duration || !lead) {
     throw new ValidationError('Missing required booking fields');
@@ -25,6 +25,23 @@ export const validateBookingRequest = (req, res, next) => {
     throw new ValidationError('Invalid booking duration');
   }
 
+  // Validate additional services if provided
+  if (additionalServices) {
+    if (!Array.isArray(additionalServices)) {
+      throw new ValidationError('Additional services must be an array');
+    }
+
+    for (const service of additionalServices) {
+      if (!service.id) {
+        throw new ValidationError('Each additional service must have an ID');
+      }
+
+      if (service.quantity && (!Number.isInteger(service.quantity) || service.quantity <= 0)) {
+        throw new ValidationError('Additional service quantity must be a positive integer');
+      }
+    }
+  }
+
   next();
 };
 
@@ -42,6 +59,50 @@ export const validateDiscountCodeRequest = (req, res, next) => {
   // Validate discount code format if needed
   if (typeof discountCode !== 'string' || discountCode.trim().length === 0) {
     throw new ValidationError('Invalid discount code format');
+  }
+
+  next();
+};
+
+export const validateAdditionalServiceRequest = (req, res, next) => {
+  const { title, type, price, description } = req.body;
+
+  if (!title || !type || !price || !description) {
+    throw new ValidationError('Missing required additional service fields: title, type, price, and description are required');
+  }
+
+  // Validate price
+  if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+    throw new ValidationError('Price must be a positive number');
+  }
+
+  // Validate type
+  const validTypes = [
+    'STANDARD_EDIT_SHORT_FORM',
+    'CUSTOM_EDIT_SHORT_FORM',
+    'STANDARD_EDIT_LONG_FORM',
+    'CUSTOM_EDIT_LONG_FORM',
+    'LIVE_VIDEO_CUTTING',
+    'SUBTITLES',
+    'TELEPROMPTER_SUPPORT'
+  ];
+
+  if (!validTypes.includes(type)) {
+    throw new ValidationError(`Invalid service type. Must be one of: ${validTypes.join(', ')}`);
+  }
+
+  next();
+};
+
+export const validateAddServiceToBookingRequest = (req, res, next) => {
+  const { bookingId, additionalServiceId, quantity } = req.body;
+
+  if (!bookingId || !additionalServiceId) {
+    throw new ValidationError('Missing required fields: bookingId and additionalServiceId are required');
+  }
+
+  if (quantity && (!Number.isInteger(quantity) || quantity <= 0)) {
+    throw new ValidationError('Quantity must be a positive integer');
   }
 
   next();

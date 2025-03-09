@@ -16,7 +16,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *           description: Name of the perk
  *         count:
  *           type: integer
- *           description: Optional count for items (e.g., "3x Sony cameras")
+ *           description: "Optional count for items (e.g., \"3x Sony cameras\")"
  * 
  *     StudioPackage:
  *       type: object
@@ -84,7 +84,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *           description: Name of the studio
  *         location:
  *           type: string
- *           description: Physical location of the studio
+ *           description: Studio location
  *         imageUrl:
  *           type: string
  *           format: uri
@@ -129,7 +129,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *           description: Error message
  *         details:
  *           type: string
- *           description: Detailed error information (if available)
+ *           description: "Detailed error information (if available)"
  * 
  *     TimeSlot:
  *       type: object
@@ -204,7 +204,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *                 description: Name of the studio
  *               location:
  *                 type: string
- *                 description: Physical location of the studio
+ *                 description: Studio location
  *               imageUrl:
  *                 type: string
  *                 format: uri
@@ -225,7 +225,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *                 description: Studio closing time (24-hour format)
  *               packages:
  *                 type: array
- *                 description: Additional custom packages specific to this studio (optional)
+ *                 description: "Additional custom packages specific to this studio (optional)"
  *                 items:
  *                   $ref: '#/components/schemas/StudioPackage'
  *     responses:
@@ -294,8 +294,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *         schema:
  *           type: string
  *           format: date
- *         example: "2024-03-20"
- *         description: Date to check availability (YYYY-MM-DD format). For month view, any date in the target month.
+ *         description: "Date to check availability (YYYY-MM-DD format). For month view, any date in the target month."
  *       - in: query
  *         name: view
  *         required: false

@@ -16,7 +16,8 @@ export class BookingController {
       startTime,
       duration,
       discountCode,
-      lead
+      lead,
+      additionalServices
     } = req.body;
 
     try {
@@ -85,18 +86,61 @@ export class BookingController {
           }
         }
 
-        // 5. Calculate costs
+        // 5. Calculate base costs
         const baseCost = calculateBaseCost(studioPackage.price_per_hour, duration);
+        
+        // 6. Calculate additional services cost
+        let additionalServicesCost = 0;
+        let additionalServicesData = [];
+        
+        if (additionalServices && additionalServices.length > 0) {
+          // Fetch all additional services in one query
+          const serviceIds = additionalServices.map(service => service.id);
+          const availableServices = await tx.additionalService.findMany({
+            where: {
+              id: { in: serviceIds },
+              isActive: true
+            }
+          });
+          
+          // Create a map for quick lookup
+          const serviceMap = new Map();
+          availableServices.forEach(service => {
+            serviceMap.set(service.id, service);
+          });
+          
+          // Validate and calculate costs for each service
+          for (const service of additionalServices) {
+            const additionalService = serviceMap.get(service.id);
+            
+            if (!additionalService) {
+              throw new ValidationError(`Additional service with ID ${service.id} not found or inactive`);
+            }
+            
+            const quantity = service.quantity || 1;
+            const serviceCost = parseFloat(additionalService.price) * quantity;
+            additionalServicesCost += serviceCost;
+            
+            additionalServicesData.push({
+              additionalServiceId: additionalService.id,
+              quantity,
+              price: additionalService.price
+            });
+          }
+        }
+        
+        // 7. Calculate total costs with additional services
+        const totalBeforeDiscount = baseCost + additionalServicesCost;
         const discountAmount = validatedDiscount 
           ? validatedDiscount.type === 'PERCENTAGE'
-            ? (baseCost * validatedDiscount.value) / 100
+            ? (totalBeforeDiscount * validatedDiscount.value) / 100
             : validatedDiscount.value
           : 0;
-        const costAfterDiscount = baseCost - discountAmount;
+        const costAfterDiscount = totalBeforeDiscount - discountAmount;
         const vatAmount = (costAfterDiscount * VAT_RATE) / 100;
         const totalCost = costAfterDiscount + vatAmount;
 
-        // 6. Create or get lead
+        // 8. Create or get lead
         let bookingLead;
         if (lead.email) {
           // If email is provided, try to find existing lead
@@ -135,7 +179,7 @@ export class BookingController {
           });
         }
 
-        // 7. Create booking
+        // 9. Create booking
         const booking = await tx.booking.create({
           data: {
             startTime: startDateTime,
@@ -148,17 +192,25 @@ export class BookingController {
             status: 'PENDING',
             studioId,
             packageId,
-            leadId: bookingLead.id
+            leadId: bookingLead.id,
+            additionalServices: {
+              create: additionalServicesData
+            }
           },
           include: {
             studio: true,
             package: true,
             lead: true,
-            discountCode: true
+            discountCode: true,
+            additionalServices: {
+              include: {
+                additionalService: true
+              }
+            }
           }
         });
 
-        // 8. Update discount usage if applicable
+        // 10. Update discount usage if applicable
         if (validatedDiscount) {
           await tx.discountCode.update({
             where: { id: validatedDiscount.id },
@@ -169,72 +221,78 @@ export class BookingController {
         return booking;
       });
 
-      // Create Notion entry after successful booking
-      try {
-        const notionEntryId = await createNotionBookingEntry(result);
-        
-        // Send webhook notification
-        if (WEBHOOK_CONFIG.TRIGGER_DEV.ENABLED) {
-          try {
-            const webhookResponse = await sendWebhookNotification(
-              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
-              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
-              result
-            );
-            console.log('Webhook notification sent successfully:', webhookResponse);
-          } catch (webhookError) {
-            console.error('Failed to send webhook notification:', webhookError);
-            // Don't fail the request if webhook fails
-          }
+      // Format the response
+      const formattedAdditionalServices = result.additionalServices.map(service => ({
+        id: service.id,
+        quantity: service.quantity,
+        price: service.price,
+        service: {
+          id: service.additionalService.id,
+          title: service.additionalService.title,
+          type: service.additionalService.type,
+          description: service.additionalService.description
         }
-        
-        res.status(201).json({
-          ...result
+      }));
+
+      const response = {
+        id: result.id,
+        startTime: result.startTime,
+        endTime: result.endTime,
+        totalCost: result.totalCost,
+        vatAmount: result.vatAmount,
+        discountAmount: result.discountAmount,
+        studio: {
+          id: result.studio.id,
+          name: result.studio.name
+        },
+        package: {
+          id: result.package.id,
+          name: result.package.name
+        },
+        lead: {
+          id: result.lead.id,
+          fullName: result.lead.fullName,
+          email: result.lead.email,
+          phoneNumber: result.lead.phoneNumber
+        },
+        additionalServices: formattedAdditionalServices
+      };
+
+      // Send webhook notification
+      try {
+        await sendWebhookNotification(WEBHOOK_CONFIG.BOOKING_CREATED, {
+          bookingId: result.id,
+          studioName: result.studio.name,
+          packageName: result.package.name,
+          customerName: result.lead.fullName,
+          startTime: result.startTime,
+          endTime: result.endTime,
+          totalCost: result.totalCost
         });
+      } catch (webhookError) {
+        console.error('Failed to send webhook notification:', webhookError);
+      }
+
+      // Create Notion entry
+      try {
+        await createNotionBookingEntry(result);
       } catch (notionError) {
         console.error('Failed to create Notion entry:', notionError);
-        
-        // Still try to send webhook notification even if Notion fails
-        if (WEBHOOK_CONFIG.TRIGGER_DEV.ENABLED) {
-          try {
-            const webhookResponse = await sendWebhookNotification(
-              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
-              WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
-              result
-            );
-            console.log('Webhook notification sent successfully:', webhookResponse);
-          } catch (webhookError) {
-            console.error('Failed to send webhook notification:', webhookError);
-            // Don't fail the request if webhook fails
-          }
-        }
-        
-        // Still return success since booking was created
-        res.status(201).json({
-          ...result,
-          notionError: 'Failed to create CRM entry'
-        });
       }
+
+      res.status(201).json(response);
     } catch (error) {
-      console.error('Booking creation error:', {
-        error: error.message,
-        stack: error.stack,
-        body: req.body
-      });
-
-      // Handle all validation errors, including custom ones
-      if (error instanceof ValidationError || error.message.includes('not available') || 
-          error.message.includes('not found') || error.message.includes('exceed')) {
-        return res.status(400).json({ 
-          error: 'Validation Error',
-          message: error.message 
+      console.error('Error creating booking:', error);
+      
+      if (error instanceof ValidationError) {
+        return res.status(400).json({
+          error: error.message
         });
       }
-
-      // Handle unexpected errors
-      res.status(500).json({ 
-        error: 'Internal server error',
-        message: 'An unexpected error occurred while processing your request'
+      
+      res.status(500).json({
+        error: 'Failed to create booking',
+        details: error.message
       });
     }
   }
@@ -355,7 +413,12 @@ export class BookingController {
             }
           },
           lead: true,
-          discountCode: true
+          discountCode: true,
+          additionalServices: {
+            include: {
+              additionalService: true
+            }
+          }
         }
       });
 
@@ -402,7 +465,20 @@ export class BookingController {
           code: booking.discountCode.code,
           percentageOff: booking.discountCode.percentageOff,
           amount: booking.discountAmount
-        } : null
+        } : null,
+        additionalServices: booking.additionalServices.map(service => ({
+          id: service.id,
+          quantity: service.quantity,
+          price: service.price,
+          service: {
+            id: service.additionalService.id,
+            title: service.additionalService.title,
+            type: service.additionalService.type,
+            description: service.additionalService.description,
+            imageUrls: service.additionalService.imageUrls,
+            videoUrl: service.additionalService.videoUrl
+          }
+        }))
       };
 
       res.json(response);

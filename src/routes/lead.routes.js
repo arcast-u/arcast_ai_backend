@@ -22,16 +22,16 @@ import { validateCreateLeadRequest } from '../middleware/validation.middleware.j
  *         email:
  *           type: string
  *           format: email
- *           description: Email address (optional)
+ *           description: "Email address (optional)"
  *         phoneNumber:
  *           type: string
- *           description: Contact phone number
+ *           description: Phone number of the lead
  *         whatsappNumber:
  *           type: string
- *           description: WhatsApp number (optional)
+ *           description: "WhatsApp number (optional)"
  *         recordingLocation:
  *           type: string
- *           description: Preferred recording location (optional)
+ *           description: "Preferred recording location (optional)"
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -147,16 +147,16 @@ import { validateCreateLeadRequest } from '../middleware/validation.middleware.j
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Email address (optional)
+ *                 description: "Email address (optional)"
  *               phoneNumber:
  *                 type: string
- *                 description: Contact phone number
+ *                 description: Phone number of the lead
  *               whatsappNumber:
  *                 type: string
- *                 description: WhatsApp number (optional)
+ *                 description: "WhatsApp number (optional)"
  *               recordingLocation:
  *                 type: string
- *                 description: Preferred recording location (optional)
+ *                 description: "Preferred recording location (optional)"
  *     responses:
  *       201:
  *         description: Lead created successfully

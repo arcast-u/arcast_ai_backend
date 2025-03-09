@@ -7,6 +7,7 @@ import { specs } from './docs/swagger.js';
 import studioRoutes from './routes/studio.routes.js';
 import bookingRoutes from './routes/booking.routes.js';
 import leadRoutes from './routes/lead.routes.js';
+import additionalServiceRoutes from './routes/additionalService.routes.js';
 
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 dotenv.config();
@@ -26,6 +27,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
 app.use('/api/studios', studioRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/leads', leadRoutes);
+app.use('/api/additional-services', additionalServiceRoutes);
 
 export default app;
 
