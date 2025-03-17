@@ -86,6 +86,18 @@ async function seedAdditionalServices() {
         imageUrls: [
           'https://example.com/images/teleprompter.jpg'
         ]
+      },
+      {
+        title: 'Multi-Camera Recording',
+        type: 'MULTI_CAM_RECORDING',
+        price: 300,
+        currency: 'AED',
+        count: 1,
+        description: 'Professional multi-camera setup for dynamic and engaging content with multiple angles and perspectives.',
+        imageUrls: [
+          'https://example.com/images/multicam1.jpg',
+          'https://example.com/images/multicam2.jpg'
+        ]
       }
     ];
 

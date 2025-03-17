@@ -84,7 +84,8 @@ export const validateAdditionalServiceRequest = (req, res, next) => {
     'CUSTOM_EDIT_LONG_FORM',
     'LIVE_VIDEO_CUTTING',
     'SUBTITLES',
-    'TELEPROMPTER_SUPPORT'
+    'TELEPROMPTER_SUPPORT',
+    'MULTI_CAM_RECORDING'
   ];
 
   if (!validTypes.includes(type)) {

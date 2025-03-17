@@ -18,7 +18,7 @@ import { validateAdditionalServiceRequest, validateAddServiceToBookingRequest } 
  *           description: Title of the additional service
  *         type:
  *           type: string
- *           enum: [STANDARD_EDIT_SHORT_FORM, CUSTOM_EDIT_SHORT_FORM, STANDARD_EDIT_LONG_FORM, CUSTOM_EDIT_LONG_FORM, LIVE_VIDEO_CUTTING, SUBTITLES, TELEPROMPTER_SUPPORT]
+ *           enum: [STANDARD_EDIT_SHORT_FORM, CUSTOM_EDIT_SHORT_FORM, STANDARD_EDIT_LONG_FORM, CUSTOM_EDIT_LONG_FORM, LIVE_VIDEO_CUTTING, SUBTITLES, TELEPROMPTER_SUPPORT, MULTI_CAM_RECORDING]
  *           description: Type of additional service
  *         price:
  *           type: number
@@ -98,7 +98,7 @@ import { validateAdditionalServiceRequest, validateAddServiceToBookingRequest } 
  *                 type: string
  *               type:
  *                 type: string
- *                 enum: [STANDARD_EDIT_SHORT_FORM, CUSTOM_EDIT_SHORT_FORM, STANDARD_EDIT_LONG_FORM, CUSTOM_EDIT_LONG_FORM, LIVE_VIDEO_CUTTING, SUBTITLES, TELEPROMPTER_SUPPORT]
+ *                 enum: [STANDARD_EDIT_SHORT_FORM, CUSTOM_EDIT_SHORT_FORM, STANDARD_EDIT_LONG_FORM, CUSTOM_EDIT_LONG_FORM, LIVE_VIDEO_CUTTING, SUBTITLES, TELEPROMPTER_SUPPORT, MULTI_CAM_RECORDING]
  *               price:
  *                 type: number
  *               currency:
@@ -215,7 +215,7 @@ import { validateAdditionalServiceRequest, validateAddServiceToBookingRequest } 
  *                 type: string
  *               type:
  *                 type: string
- *                 enum: [STANDARD_EDIT_SHORT_FORM, CUSTOM_EDIT_SHORT_FORM, STANDARD_EDIT_LONG_FORM, CUSTOM_EDIT_LONG_FORM, LIVE_VIDEO_CUTTING, SUBTITLES, TELEPROMPTER_SUPPORT]
+ *                 enum: [STANDARD_EDIT_SHORT_FORM, CUSTOM_EDIT_SHORT_FORM, STANDARD_EDIT_LONG_FORM, CUSTOM_EDIT_LONG_FORM, LIVE_VIDEO_CUTTING, SUBTITLES, TELEPROMPTER_SUPPORT, MULTI_CAM_RECORDING]
  *               price:
  *                 type: number
  *               currency:

@@ -117,6 +117,7 @@ enum AdditionalServiceType {
     LIVE_VIDEO_CUTTING
     SUBTITLES
     TELEPROMPTER_SUPPORT
+    MULTI_CAM_RECORDING
 }
 
 model AdditionalService {
