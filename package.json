@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "build": "prisma generate",
+    "build": "npm install && prisma generate",
+    "vercel-build": "npm install && prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
@@ -28,7 +29,8 @@
     "express": "^4.21.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "4.3.0",
-    "z-schema": "^5.0.5"
+    "z-schema": "^5.0.5",
+    "@apidevtools/swagger-parser": "^10.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
