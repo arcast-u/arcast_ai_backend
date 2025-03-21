@@ -1,4 +1,7 @@
 import { ValidationError } from '../errors/custom.errors.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 /**
  * Calculate the discount amount based on the discount type and booking amount
@@ -17,9 +20,10 @@ export const calculateDiscountAmount = (discountCode, bookingAmount) => {
  * Validate a discount code for use
  * @param {Object} discountCode - The discount code object
  * @param {number} bookingAmount - The original booking amount
+ * @param {string} leadId - The ID of the lead (client) making the booking
  * @throws {ValidationError} If the discount code is invalid
  */
-export const validateDiscountCode = (discountCode, bookingAmount) => {
+export const validateDiscountCode = async (discountCode, bookingAmount, leadId = null) => {
   const now = new Date();
 
   if (!discountCode.isActive) {
@@ -38,5 +42,19 @@ export const validateDiscountCode = (discountCode, bookingAmount) => {
     throw new ValidationError(
       `This discount code requires a minimum booking amount of ${discountCode.minAmount}`
     );
+  }
+
+  // Check for first-time client restriction
+  if (discountCode.firstTimeOnly && leadId) {
+    // Count previous bookings for this lead
+    const previousBookings = await prisma.booking.count({
+      where: { leadId }
+    });
+
+    if (previousBookings > 0) {
+      throw new ValidationError(
+        'This discount code is only valid for first-time clients'
+      );
+    }
   }
 }; 

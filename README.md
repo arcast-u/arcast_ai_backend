@@ -119,4 +119,45 @@ This project is licensed under the ISC License.
 
 ## 🙏 Acknowledgments
 
-- List any acknowledgments or third-party services used 
+- List any acknowledgments or third-party services used
+
+## Discount Codes
+
+To create the "ARCAST50" discount code that gives 50% off for first-time clients:
+
+1. Apply the database migration to add the `firstTimeOnly` field to the `DiscountCode` model:
+
+```bash
+npx prisma migrate dev --name add_first_time_only_field
+```
+
+2. Run the script to create the ARCAST50 discount code:
+
+```bash
+npm run create:arcast50
+```
+
+This will create a discount code with the following properties:
+
+- Code: `ARCAST50`
+- Discount: 50% off
+- Restrictions: Only valid for first-time clients
+- Validity: 1 year from creation date
+
+## Discount Code API Endpoints
+
+The following endpoints are available for managing discount codes:
+
+- `POST /api/discount-codes` - Create a new discount code
+- `GET /api/discount-codes` - Get all discount codes
+- `GET /api/discount-codes/:id` - Get a specific discount code by ID
+- `PUT /api/discount-codes/:id` - Update an existing discount code
+- `DELETE /api/discount-codes/:id` - Delete a discount code
+
+Discount codes can be configured with the following options:
+
+- Percentage or fixed amount discounts
+- Minimum booking amount requirements
+- Usage limits
+- Active time period
+- First-time client restriction 

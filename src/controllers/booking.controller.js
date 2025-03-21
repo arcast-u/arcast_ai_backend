@@ -84,6 +84,18 @@ export class BookingController {
           if (!validatedDiscount || !validatedDiscount.isActive || validatedDiscount.endDate < new Date()) {
             throw new ValidationError('Invalid or expired discount code');
           }
+          
+          // Check for first-time customer restriction
+          if (validatedDiscount.firstTimeOnly) {
+            // Count previous bookings for this lead
+            const previousBookings = await tx.booking.count({
+              where: { leadId: lead.id }
+            });
+            
+            if (previousBookings > 0) {
+              throw new ValidationError('This discount code is only valid for first-time clients');
+            }
+          }
         }
 
         // 5. Calculate base costs
@@ -298,37 +310,53 @@ export class BookingController {
   }
 
   validateDiscountCode = async (req, res) => {
-    const { code } = req.query;
+    const { code, amount, leadId } = req.query;
     try {
       const discount = await prisma.discountCode.findUnique({
         where: { code }
       });
 
       if (!discount || !discount.isActive || discount.endDate < new Date()) {
-        return res.json({ 
-          valid: false,
+        return res.status(400).json({
+          success: false,
           message: 'Invalid or expired discount code'
         });
       }
 
       if (discount.maxUses && discount.usedCount >= discount.maxUses) {
-        return res.json({
-          valid: false,
+        return res.status(400).json({
+          success: false,
           message: 'Discount code has reached its usage limit'
         });
       }
 
-      res.json({
+      // Check for first-time client restriction if leadId is provided
+      if (discount.firstTimeOnly && leadId) {
+        const previousBookings = await prisma.booking.count({
+          where: { leadId }
+        });
+        
+        if (previousBookings > 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'This discount code is only valid for first-time clients'
+          });
+        }
+      }
+
+      res.status(200).json({
+        success: true,
         valid: true,
         type: discount.type,
         value: discount.value,
-        minAmount: discount.minAmount
+        minAmount: discount.minAmount,
+        firstTimeOnly: discount.firstTimeOnly
       });
     } catch (error) {
       console.error('Error validating discount code:', error);
-      res.status(500).json({ 
+      return res.status(500).json({
+        success: false,
         error: 'Failed to validate discount code',
-        details: error.message 
       });
     }
   }
@@ -361,11 +389,11 @@ export class BookingController {
         throw new ValidationError('Invalid discount code');
       }
 
-      // Validate the discount code
-      validateDiscountCode(discountCode, booking.totalAmount);
+      // Validate the discount code (including first-time client check)
+      await validateDiscountCode(discountCode, booking.totalCost, booking.lead.id);
 
       // Calculate discount amount
-      const discountAmount = calculateDiscountAmount(discountCode, booking.totalAmount);
+      const discountAmount = calculateDiscountAmount(discountCode, booking.totalCost);
 
       // Update the booking with the discount
       const updatedBooking = await prisma.$transaction(async (prisma) => {
@@ -381,7 +409,7 @@ export class BookingController {
           data: {
             discountCodeId: discountCode.id,
             discountAmount: discountAmount,
-            totalAmount: booking.totalAmount - discountAmount
+            totalCost: booking.totalCost - discountAmount
           }
         });
       });
