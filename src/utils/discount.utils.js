@@ -20,10 +20,10 @@ export const calculateDiscountAmount = (discountCode, bookingAmount) => {
  * Validate a discount code for use
  * @param {Object} discountCode - The discount code object
  * @param {number} bookingAmount - The original booking amount
- * @param {string} leadId - The ID of the lead (client) making the booking
+ * @param {string} email - The email of the client making the booking
  * @throws {ValidationError} If the discount code is invalid
  */
-export const validateDiscountCode = async (discountCode, bookingAmount, leadId = null) => {
+export const validateDiscountCode = async (discountCode, bookingAmount, email = null) => {
   const now = new Date();
 
   if (!discountCode.isActive) {
@@ -44,14 +44,18 @@ export const validateDiscountCode = async (discountCode, bookingAmount, leadId =
     );
   }
 
-  // Check for first-time client restriction
-  if (discountCode.firstTimeOnly && leadId) {
-    // Count previous bookings for this lead
-    const previousBookings = await prisma.booking.count({
-      where: { leadId }
+  // Check for first-time client restriction using email
+  if (discountCode.firstTimeOnly && email) {
+    // Instead of fetching all leads and bookings, just count if there are any bookings
+    const bookingsCount = await prisma.booking.count({
+      where: {
+        lead: {
+          email: email
+        }
+      }
     });
-
-    if (previousBookings > 0) {
+    
+    if (bookingsCount > 0) {
       throw new ValidationError(
         'This discount code is only valid for first-time clients'
       );

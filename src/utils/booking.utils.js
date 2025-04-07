@@ -56,12 +56,10 @@ export async function validateBookingTime(
 ) {
   // Convert UTC booking times to Dubai time (UTC+4)
   const dubaiOffset = 4 * 60; // 4 hours in minutes
-  const localStartTime = new Date(startTime);
-  const localEndTime = new Date(endTime);
   
   // Extract hours and minutes and adjust for Dubai time
-  const bookingStart = localStartTime.getUTCHours() * 60 + localStartTime.getUTCMinutes() + dubaiOffset;
-  const bookingEnd = localEndTime.getUTCHours() * 60 + localEndTime.getUTCMinutes() + dubaiOffset;
+  const bookingStart = startTime.getUTCHours() * 60 + startTime.getUTCMinutes() + dubaiOffset;
+  const bookingEnd = endTime.getUTCHours() * 60 + endTime.getUTCMinutes() + dubaiOffset;
   
   // Parse studio hours (these are already in Dubai time)
   const [openHour, openMinute] = openingTime.split(':').map(Number);
@@ -69,45 +67,21 @@ export async function validateBookingTime(
   const studioOpen = openHour * 60 + openMinute;
   const studioClose = closeHour * 60 + closeMinute;
 
-  // console.log('Time validation details:', {
-  //   bookingStartMinutes: bookingStart,
-  //   bookingEndMinutes: bookingEnd,
-  //   studioOpenMinutes: studioOpen,
-  //   studioCloseMinutes: studioClose,
-  //   localStartTime: localStartTime.toISOString(),
-  //   localEndTime: localEndTime.toISOString(),
-  //   dubaiStartTime: `${Math.floor(bookingStart/60)}:${bookingStart%60}`,
-  //   dubaiEndTime: `${Math.floor(bookingEnd/60)}:${bookingEnd%60}`,
-  //   openingTime,
-  //   closingTime
-  // });
-
   // Check if booking is within operating hours
   if (bookingStart < studioOpen || bookingEnd > studioClose) {
-    console.log('Booking outside operating hours');
     return false;
   }
 
-  // Check for overlapping bookings
-  const existingBookings = await db.booking.findMany({
+  // Use count instead of findMany to be more efficient - we only need to know if any exist
+  const overlappingBookingsCount = await db.booking.count({
     where: {
       studioId,
       status: { not: 'CANCELLED' },
-      OR: [
-        {
-          AND: [
-            { startTime: { lte: endTime } },
-            { endTime: { gt: startTime } }
-          ]
-        }
-      ],
+      startTime: { lt: endTime },
+      endTime: { gt: startTime }
     },
   });
 
-  if (existingBookings.length > 0) {
-    console.log('Found overlapping bookings:', existingBookings);
-  }
-
-  return existingBookings.length === 0;
+  return overlappingBookingsCount === 0;
 }
   

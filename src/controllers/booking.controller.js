@@ -21,141 +21,141 @@ export class BookingController {
     } = req.body;
 
     try {
-      // Start a transaction
-      const result = await prisma.$transaction(async (tx) => {
-        // 1. Validate studio availability
-        const studio = await tx.studio.findUnique({
-          where: { id: studioId },
-          include: { bookings: true }
+      // 1. Pre-transaction validations - moving these outside the transaction
+      
+      // Validate studio exists and has capacity
+      const studio = await prisma.studio.findUnique({
+        where: { id: studioId },
+        select: {
+          id: true,
+          totalSeats: true,
+          openingTime: true,
+          closingTime: true,
+          name: true
+        }
+      });
+
+      if (!studio) {
+        throw new ValidationError('Studio not found');
+      }
+
+      if (numberOfSeats > studio.totalSeats) {
+        throw new ValidationError('Requested seats exceed studio capacity');
+      }
+
+      // Calculate booking times
+      const startDateTime = new Date(startTime);
+      const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 60 * 1000);
+
+      // Validate time slot availability - only load bookings that might conflict
+      const isTimeValid = await validateBookingTime(
+        prisma,
+        studioId,
+        startDateTime,
+        endDateTime,
+        studio.openingTime,
+        studio.closingTime
+      );
+
+      if (!isTimeValid) {
+        throw new ValidationError('Selected time slot is not available');
+      }
+
+      // Get package details with minimal data
+      const studioPackage = await prisma.studioPackage.findUnique({
+        where: { id: packageId },
+        select: {
+          id: true,
+          name: true,
+          price_per_hour: true
+        }
+      });
+
+      if (!studioPackage) {
+        throw new ValidationError('Package not found');
+      }
+      
+      // Pre-validate discount code
+      let validatedDiscount = null;
+      if (discountCode) {
+        validatedDiscount = await prisma.discountCode.findUnique({
+          where: { code: discountCode }
         });
-
-        if (!studio) {
-          throw new ValidationError('Studio not found');
-        }
-
-        if (numberOfSeats > studio.totalSeats) {
-          throw new ValidationError('Requested seats exceed studio capacity');
-        }
-
-        // 2. Validate and calculate booking time
-        const startDateTime = new Date(startTime);
-        const endDateTime = new Date(startDateTime.getTime() + duration * 60 * 60 * 1000);
-
-        // console.log('Booking time validation:', {
-        //   studioId,
-        //   startTime: startDateTime.toISOString(),
-        //   endTime: endDateTime.toISOString(),
-        //   openingTime: studio.openingTime,
-        //   closingTime: studio.closingTime,
-        //   existingBookings: studio.bookings.map(b => ({
-        //     start: b.startTime.toISOString(),
-        //     end: b.endTime.toISOString()
-        //   }))
-        // });
-        const isTimeValid = await validateBookingTime(
-          tx,
-          studioId,
-          startDateTime,
-          endDateTime,
-          studio.openingTime,
-          studio.closingTime
-        );
-
-        if (!isTimeValid) {
-          throw new ValidationError('Selected time slot is not available');
-        }
-
-        // 3. Get package details
-        const studioPackage = await tx.studioPackage.findUnique({
-          where: { id: packageId }
-        });
-
-        if (!studioPackage) {
-          throw new Error('Package not found');
-        }
-
-        // 4. Validate discount code if provided
-        let validatedDiscount = null;
-        if (discountCode) {
-          validatedDiscount = await tx.discountCode.findUnique({
-            where: { code: discountCode }
-          });
-          
-          if (!validatedDiscount || !validatedDiscount.isActive || validatedDiscount.endDate < new Date()) {
-            throw new ValidationError('Invalid or expired discount code');
-          }
-          
-          // Check for first-time customer restriction
-          if (validatedDiscount.firstTimeOnly) {
-            // Count previous bookings for this lead
-            const previousBookings = await tx.booking.count({
-              where: { leadId: lead.id }
-            });
-            
-            if (previousBookings > 0) {
-              throw new ValidationError('This discount code is only valid for first-time clients');
-            }
-          }
-        }
-
-        // 5. Calculate base costs
-        const baseCost = calculateBaseCost(studioPackage.price_per_hour, duration);
         
-        // 6. Calculate additional services cost
-        let additionalServicesCost = 0;
-        let additionalServicesData = [];
+        if (!validatedDiscount || !validatedDiscount.isActive || validatedDiscount.endDate < new Date()) {
+          throw new ValidationError('Invalid or expired discount code');
+        }
         
-        if (additionalServices && additionalServices.length > 0) {
-          // Fetch all additional services in one query
-          const serviceIds = additionalServices.map(service => service.id);
-          const availableServices = await tx.additionalService.findMany({
+        // First-time customer check
+        if (validatedDiscount.firstTimeOnly && lead.email) {
+          const bookingsCount = await prisma.booking.count({
             where: {
-              id: { in: serviceIds },
-              isActive: true
+              lead: {
+                email: lead.email
+              }
             }
           });
           
-          // Create a map for quick lookup
-          const serviceMap = new Map();
-          availableServices.forEach(service => {
-            serviceMap.set(service.id, service);
-          });
-          
-          // Validate and calculate costs for each service
-          for (const service of additionalServices) {
-            const additionalService = serviceMap.get(service.id);
-            
-            if (!additionalService) {
-              throw new ValidationError(`Additional service with ID ${service.id} not found or inactive`);
-            }
-            
-            const quantity = service.quantity || 1;
-            const serviceCost = parseFloat(additionalService.price) * quantity;
-            additionalServicesCost += serviceCost;
-            
-            additionalServicesData.push({
-              additionalServiceId: additionalService.id,
-              quantity,
-              price: additionalService.price
-            });
+          if (bookingsCount > 0) {
+            throw new ValidationError('This discount code is only valid for first-time clients');
           }
         }
-        
-        // 7. Calculate total costs with additional services
-        const totalBeforeDiscount = baseCost + additionalServicesCost;
-        const discountAmount = validatedDiscount 
-          ? validatedDiscount.type === 'PERCENTAGE'
-            ? (totalBeforeDiscount * validatedDiscount.value) / 100
-            : validatedDiscount.value
-          : 0;
-        const costAfterDiscount = totalBeforeDiscount - discountAmount;
-        const vatAmount = (costAfterDiscount * VAT_RATE) / 100;
-        const totalCost = costAfterDiscount + vatAmount;
+      }
 
-        // 8. Create or get lead
+      // Pre-fetch additional services to validate
+      let additionalServicesData = [];
+      let additionalServicesCost = 0;
+      
+      if (additionalServices && additionalServices.length > 0) {
+        const serviceIds = additionalServices.map(service => service.id);
+        const availableServices = await prisma.additionalService.findMany({
+          where: {
+            id: { in: serviceIds },
+            isActive: true
+          }
+        });
+        
+        const serviceMap = new Map();
+        availableServices.forEach(service => {
+          serviceMap.set(service.id, service);
+        });
+        
+        for (const service of additionalServices) {
+          const additionalService = serviceMap.get(service.id);
+          
+          if (!additionalService) {
+            throw new ValidationError(`Additional service with ID ${service.id} not found or inactive`);
+          }
+          
+          const quantity = service.quantity || 1;
+          const serviceCost = parseFloat(additionalService.price) * quantity;
+          additionalServicesCost += serviceCost;
+          
+          additionalServicesData.push({
+            additionalServiceId: additionalService.id,
+            quantity,
+            price: additionalService.price
+          });
+        }
+      }
+      
+      // Calculate costs
+      const baseCost = calculateBaseCost(studioPackage.price_per_hour, duration);
+      const totalBeforeDiscount = baseCost + additionalServicesCost;
+      const discountAmount = validatedDiscount 
+        ? validatedDiscount.type === 'PERCENTAGE'
+          ? (totalBeforeDiscount * validatedDiscount.value) / 100
+          : validatedDiscount.value
+        : 0;
+      const costAfterDiscount = totalBeforeDiscount - discountAmount;
+      const vatAmount = (costAfterDiscount * VAT_RATE) / 100;
+      const totalCost = costAfterDiscount + vatAmount;
+
+      // 2. Now start a shorter transaction that only does essential writes
+      const result = await prisma.$transaction(async (tx) => {
+        // Handle lead creation/update
         let bookingLead;
         if (lead.email) {
-          // If email is provided, try to find existing lead
           const existingLead = await tx.lead.findFirst({
             where: { email: lead.email }
           });
@@ -180,7 +180,6 @@ export class BookingController {
                 }
               });
         } else {
-          // If no email, create new lead without email
           bookingLead = await tx.lead.create({
             data: {
               fullName: lead.fullName,
@@ -191,7 +190,7 @@ export class BookingController {
           });
         }
 
-        // 9. Create booking
+        // Create booking
         const booking = await tx.booking.create({
           data: {
             startTime: startDateTime,
@@ -222,7 +221,7 @@ export class BookingController {
           }
         });
 
-        // 10. Update discount usage if applicable
+        // Update discount usage if applicable
         if (validatedDiscount) {
           await tx.discountCode.update({
             where: { id: validatedDiscount.id },
@@ -231,6 +230,8 @@ export class BookingController {
         }
 
         return booking;
+      }, {
+        timeout: 15000 // Still use a higher timeout as a safety net
       });
 
       // Format the response
@@ -310,19 +311,20 @@ export class BookingController {
   }
 
   validateDiscountCode = async (req, res) => {
-    const { code, amount, leadId } = req.query;
     try {
+      const { code, amount, email } = req.query;
+      
       const discount = await prisma.discountCode.findUnique({
         where: { code }
       });
-
+      
       if (!discount || !discount.isActive || discount.endDate < new Date()) {
         return res.status(400).json({
           success: false,
           message: 'Invalid or expired discount code'
         });
       }
-
+      
       if (discount.maxUses && discount.usedCount >= discount.maxUses) {
         return res.status(400).json({
           success: false,
@@ -330,21 +332,25 @@ export class BookingController {
         });
       }
 
-      // Check for first-time client restriction if leadId is provided
-      if (discount.firstTimeOnly && leadId) {
-        const previousBookings = await prisma.booking.count({
-          where: { leadId }
+      // Check for first-time client restriction if email is provided
+      if (discount.firstTimeOnly && email) {
+        const bookingsCount = await prisma.booking.count({
+          where: {
+            lead: {
+              email: email
+            }
+          }
         });
         
-        if (previousBookings > 0) {
+        if (bookingsCount > 0) {
           return res.status(400).json({
             success: false,
             message: 'This discount code is only valid for first-time clients'
           });
         }
       }
-
-      res.status(200).json({
+      
+      return res.status(200).json({
         success: true,
         valid: true,
         type: discount.type,
@@ -368,52 +374,59 @@ export class BookingController {
     try {
       const { bookingId, discountCode: code } = req.body;
 
+      // Get booking details with lead info
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        include: { discountCode: true }
+        include: { 
+          discountCode: true,
+          lead: true
+        }
       });
-
+      
       if (!booking) {
         throw new ValidationError('Booking not found');
       }
-
+      
+      // Check if a discount code is already applied
       if (booking.discountCode) {
         throw new ValidationError('A discount code has already been applied to this booking');
       }
-
+      
       const discountCode = await prisma.discountCode.findUnique({
-        where: { code: code.toUpperCase() }
+        where: { code }
       });
-
+      
       if (!discountCode) {
         throw new ValidationError('Invalid discount code');
       }
-
-      // Validate the discount code (including first-time client check)
-      await validateDiscountCode(discountCode, booking.totalCost, booking.lead.id);
-
+      
+      // Validate the discount code using lead's email for first-time check
+      if (booking.lead && booking.lead.email) {
+        await validateDiscountCode(discountCode, booking.totalCost, booking.lead.email);
+      } else {
+        // If no email, just validate the basic aspects of the discount code
+        await validateDiscountCode(discountCode, booking.totalCost);
+      }
+      
       // Calculate discount amount
       const discountAmount = calculateDiscountAmount(discountCode, booking.totalCost);
-
-      // Update the booking with the discount
-      const updatedBooking = await prisma.$transaction(async (prisma) => {
-        // Increment the used count
-        await prisma.discountCode.update({
-          where: { id: discountCode.id },
-          data: { usedCount: { increment: 1 } }
-        });
-
-        // Apply the discount to the booking
-        return prisma.booking.update({
-          where: { id: bookingId },
-          data: {
-            discountCodeId: discountCode.id,
-            discountAmount: discountAmount,
-            totalCost: booking.totalCost - discountAmount
-          }
-        });
+      
+      // Update the discount code usage count
+      await prisma.discountCode.update({
+        where: { id: discountCode.id },
+        data: { usedCount: discountCode.usedCount + 1 }
       });
-
+      
+      // Apply the discount to the booking
+      const updatedBooking = await prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          discountCodeId: discountCode.id,
+          discountAmount: discountAmount,
+          totalCost: booking.totalCost - discountAmount
+        }
+      });
+      
       res.json({
         success: true,
         data: updatedBooking
