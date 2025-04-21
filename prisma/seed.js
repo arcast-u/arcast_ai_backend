@@ -37,7 +37,7 @@ async function createBookingsForStudio(studioId, packageId, dates, leadId, shoul
   const bookings = [];
   
   for (const date of dates) {
-    const timeSlots = generateTimeSlots(date, "09:00", "21:00");
+    const timeSlots = generateTimeSlots(date, "10:00", "21:00");
     
     // If shouldBeFullyBooked is true, book all slots
     // Otherwise, only book 2-3 random slots per day to leave some availability
@@ -138,7 +138,7 @@ async function main() {
         location: "Anywhere in Dubai",
         imageUrl: "https://example.com/studio-mobile.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
@@ -162,7 +162,7 @@ async function main() {
         location: "Dubai",
         imageUrl: "https://example.com/studio-1.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
@@ -186,7 +186,7 @@ async function main() {
         location: "Dubai",
         imageUrl: "https://example.com/studio-2.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
@@ -210,7 +210,7 @@ async function main() {
         location: "Dubai",
         imageUrl: "https://example.com/studio-3.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
@@ -234,7 +234,7 @@ async function main() {
         location: "Dubai",
         imageUrl: "https://example.com/studio-4.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
@@ -258,7 +258,7 @@ async function main() {
         location: "Dubai",
         imageUrl: "https://example.com/studio-5.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
@@ -282,7 +282,7 @@ async function main() {
         location: "Dubai",
         imageUrl: "https://example.com/studio-6.jpg",
         totalSeats: 4,
-        openingTime: "09:00",
+        openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [

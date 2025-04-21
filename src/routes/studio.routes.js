@@ -96,7 +96,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *         openingTime:
  *           type: string
  *           pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
- *           example: "09:00"
+ *           example: "10:00"
  *           description: Studio opening time (24-hour format)
  *         closingTime:
  *           type: string
@@ -137,7 +137,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *         start:
  *           type: string
  *           format: date-time
- *           example: "2024-03-20T09:00:00Z"
+ *           example: "2024-03-20T10:00:00Z"
  *         end:
  *           type: string
  *           format: date-time
@@ -216,7 +216,7 @@ import { validateCreateStudioRequest } from '../middleware/validation.middleware
  *               openingTime:
  *                 type: string
  *                 pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
- *                 example: "09:00"
+ *                 example: "10:00"
  *                 description: Studio opening time (24-hour format)
  *               closingTime:
  *                 type: string
