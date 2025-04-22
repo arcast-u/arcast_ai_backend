@@ -30,7 +30,7 @@ export const MAMO_ENDPOINTS = {
   CHARGES: '/charges',
   TRANSACTIONS: '/transactions',
   WEBHOOKS: '/webhooks',
-  BUSINESS: '/'
+  BUSINESS: '/business'
 };
 
 // Payment link configuration defaults

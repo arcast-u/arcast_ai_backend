@@ -12,13 +12,39 @@ import {
  * @returns {Object} Axios instance configured for MamoPay
  */
 export const createMamoClient = () => {
-  return axios.create({
+  if (!MAMO_API_KEY || MAMO_API_KEY.trim() === '') {
+    console.warn('⚠️ Warning: MAMO_API_KEY is not set or is empty. MamoPay API calls will fail.');
+  }
+  
+  // Create the axios instance
+  const client = axios.create({
     baseURL: MAMO_BASE_URL,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${MAMO_API_KEY}`
     }
   });
+  
+  // Add interceptor for error logging
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response) {
+        // Log API-specific errors
+        if (error.response.status === 401 || error.response.status === 403) {
+          console.error('🔑 MamoPay API Authentication Error:', error.response.data || 'Unauthorized');
+          console.error('   Please check your API key and permissions.');
+        } else if (error.response.status === 404) {
+          console.error('🔍 MamoPay API Endpoint Not Found:', error.config.url);
+          console.error('   Please check the API endpoint configuration.');
+        }
+      }
+      
+      return Promise.reject(error);
+    }
+  );
+  
+  return client;
 };
 
 /**

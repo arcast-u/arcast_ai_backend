@@ -16,8 +16,7 @@
     "postinstall": "prisma generate",
     "create:arcast50": "node scripts/create_arcast50_code.js",
     "test:mamo": "node src/scripts/testMamoPayIntegration.js",
-    "db:cleanup": "node scripts/cleanup_seed.js",
-    "db:cleanup:bookings": "node scripts/cleanup_bookings.js"
+    "db:cleanup": "node scripts/cleanup_seed.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
