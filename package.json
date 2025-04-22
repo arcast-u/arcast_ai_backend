@@ -14,7 +14,10 @@
     "prisma:seed": "node prisma/seed.js",
     "setup": "npm install && npm run prisma:generate && npm run prisma:migrate",
     "postinstall": "prisma generate",
-    "create:arcast50": "node scripts/create_arcast50_code.js"
+    "create:arcast50": "node scripts/create_arcast50_code.js",
+    "test:mamo": "node src/scripts/testMamoPayIntegration.js",
+    "db:cleanup": "node scripts/cleanup_seed.js",
+    "db:cleanup:bookings": "node scripts/cleanup_bookings.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -23,15 +26,16 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0",
     "@notionhq/client": "^2.2.15",
     "@prisma/client": "^6.3.1",
+    "axios": "^1.8.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "4.3.0",
-    "z-schema": "^5.0.5",
-    "@apidevtools/swagger-parser": "^10.1.0"
+    "z-schema": "^5.0.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",

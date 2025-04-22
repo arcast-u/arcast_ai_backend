@@ -87,6 +87,7 @@ model Booking {
     discountCodeId      String?
     discountCode        DiscountCode?  @relation(fields: [discountCodeId], references: [id])
     additionalServices  BookingAdditionalService[]
+    payment             Payment?        // Relation to payment
     createdAt           DateTime  @default(now())
     updatedAt           DateTime  @updatedAt
 }
@@ -119,6 +120,9 @@ enum AdditionalServiceType {
     SUBTITLES
     TELEPROMPTER_SUPPORT
     MULTI_CAM_RECORDING
+    EPISODE_TRAILER_LONG_FORM
+    EPISODE_TRAILER_SHORT_FORM
+    WARDROBE_STYLING_CONSULTATION
 }
 
 model AdditionalService {
@@ -149,4 +153,62 @@ model BookingAdditionalService {
     updatedAt           DateTime          @updatedAt
 
     @@unique([bookingId, additionalServiceId])
+}
+
+// Payment-related models
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+}
+
+enum PaymentProvider {
+    MAMO_PAY
+    // Can add other payment providers in the future
+}
+
+model Payment {
+    id                  String           @id @default(uuid())
+    bookingId           String           @unique
+    booking             Booking          @relation(fields: [bookingId], references: [id])
+    amount              Decimal          @db.Decimal(10, 2)
+    currency            String           @default("AED")
+    status              PaymentStatus    @default(PENDING)
+    provider            PaymentProvider  @default(MAMO_PAY)
+    externalId          String?          // ID from payment provider
+    paymentLinkId       String?          // ID of the payment link in our system
+    paymentLink         PaymentLink?     @relation(fields: [paymentLinkId], references: [id])
+    metadata            Json?            // Additional metadata about the payment
+    completedAt         DateTime?        // When the payment was completed
+    refundedAt          DateTime?        // When the payment was refunded (if applicable)
+    createdAt           DateTime         @default(now())
+    updatedAt           DateTime         @updatedAt
+}
+
+model PaymentLink {
+    id                  String           @id @default(uuid())
+    url                 String           // Payment link URL
+    externalId          String?          // ID from payment provider
+    provider            PaymentProvider  @default(MAMO_PAY)
+    amount              Decimal          @db.Decimal(10, 2)
+    currency            String           @default("AED")
+    title               String           // Title of the payment
+    description         String?          // Description of what is being paid for
+    metadata            Json?            // Additional metadata about the payment link
+    expiresAt           DateTime?        // Optional expiration date
+    payments            Payment[]        // Relation to payments made with this link
+    createdAt           DateTime         @default(now())
+    updatedAt           DateTime         @updatedAt
+}
+
+model WebhookEvent {
+    id                  String           @id @default(uuid())
+    provider            PaymentProvider  @default(MAMO_PAY)
+    eventType           String           // Type of event (payment.completed, payment.failed, etc.)
+    payload             Json             // Raw webhook payload
+    processedAt         DateTime?        // When the webhook was processed
+    status              String           // Status of webhook processing (successful, failed, pending)
+    createdAt           DateTime         @default(now())
+    updatedAt           DateTime         @updatedAt
 }

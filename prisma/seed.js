@@ -1,125 +1,43 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-// Helper function to generate dates for the next N days
-function generateDates(startDate, numberOfDays) {
-  const dates = [];
-  for (let i = 0; i < numberOfDays; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    dates.push(date);
-  }
-  return dates;
-}
-
-// Helper function to generate time slots for a given date
-function generateTimeSlots(date, openingTime, closingTime) {
-  const slots = [];
-  const [openHour] = openingTime.split(':').map(Number);
-  const [closeHour] = closingTime.split(':').map(Number);
-  
-  for (let hour = openHour; hour < closeHour; hour++) {
-    const startTime = new Date(date);
-    startTime.setHours(hour, 0, 0, 0);
-    const endTime = new Date(date);
-    endTime.setHours(hour + 1, 0, 0, 0);
-    
-    // Only add future slots
-    if (startTime > new Date()) {
-      slots.push({ startTime, endTime });
-    }
-  }
-  return slots;
-}
-
-// Helper function to create bookings for a studio
-async function createBookingsForStudio(studioId, packageId, dates, leadId, shouldBeFullyBooked = false) {
-  const bookings = [];
-  
-  for (const date of dates) {
-    const timeSlots = generateTimeSlots(date, "10:00", "21:00");
-    
-    // If shouldBeFullyBooked is true, book all slots
-    // Otherwise, only book 2-3 random slots per day to leave some availability
-    const slotsToBook = shouldBeFullyBooked ? timeSlots : timeSlots.filter(() => {
-      // Randomly select 2-3 slots per day
-      return Math.random() < 0.99; // This will book roughly 99% of slots
-    });
-    
-    // Create a booking for each selected time slot
-    const bookingPromises = slotsToBook.map(slot => 
-      prisma.booking.create({
-        data: {
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          numberOfSeats: 2,
-          totalCost: 600.00,
-          vatAmount: 30.00,
-          status: "CONFIRMED",
-          studioId: studioId,
-          packageId: packageId,
-          leadId: leadId,
-        },
-      })
-    );
-
-    const createdBookings = await Promise.all(bookingPromises);
-    bookings.push(...createdBookings);
-  }
-  return bookings;
-}
-
 async function main() {
-  // Create a dummy lead for our bookings
-  const dummyLead = await prisma.lead.create({
+  console.log('Starting seed process...');
+  
+  // Create Studio Packages with their perks
+  console.log('Creating studio packages...');
+  
+  // 1. Recording + Professional Edit Package
+  const recordingEditPackage = await prisma.studioPackage.create({
     data: {
-      fullName: "Test User",
-      email: "test@example.com",
-      phoneNumber: "+971500000000"
-    }
-  });
-
-  // Create another lead with recordingLocation
-  const dummyLeadWithLocation = await prisma.lead.create({
-    data: {
-      fullName: "Test User 2",
-      email: "test2@example.com",
-      phoneNumber: "+971500000001",
-      recordingLocation: "Dubai"
-    }
-  });
-
-  // Create the basic recording package
-  const basicPackage = await prisma.studioPackage.create({
-    data: {
-      name: "Recording (Video + Audio)",
-      price_per_hour: 600.00,
+      name: "Recording + Professional Edit",
+      price_per_hour: 940.00,
       currency: "AED",
-      description: "Professional recording package with multi-camera setup and high-quality audio",
+      description: "Get high-quality recording with professional editing to enhance your sound",
       delivery_time: 24,
       packagePerks: {
         create: [
           { name: "Raw video in multiple resolutions (1080p/4K)" },
           { name: "Audio files in multiple formats (MP3, WAV, MP4)" },
-          { name: "Audio/ video syncing" },
+          { name: "Audio / video syncing" },
           { name: "Color grading" },
           { name: "Noise reduction" },
-          { name: "2 revisions" },
-          { name: "Transcript" },
+          { name: "Revisions", count: 2 },
+          { name: "Filler words removal" },
           { name: "SEO optimized show notes" }
         ]
       }
     }
   });
 
-  // Create the professional edit package
-  const proPackage = await prisma.studioPackage.create({
+  // 2. Recording Only Package
+  const recordingOnlyPackage = await prisma.studioPackage.create({
     data: {
-      name: "Recording + Professional Edit",
-      price_per_hour: 950.00,
+      name: "Recording Only",
+      price_per_hour: 440.00,
       currency: "AED",
-      description: "Complete recording and professional editing package with revisions",
-      delivery_time: 72,
+      description: "Get high-quality recording with professional editing to enhance your sound",
+      delivery_time: 24,
       packagePerks: {
         create: [
           { name: "Raw video in multiple resolutions (1080p/4K)" },
@@ -129,252 +47,220 @@ async function main() {
     }
   });
 
-  // Create all studios
-  const studios = await Promise.all([
-    // Mobile studio service
-    prisma.studio.create({
+    // 3. Recording + Live Video Cutting Package
+    const recordingLiveCuttingPackage = await prisma.studioPackage.create({
       data: {
-        name: "Mobile Studio Service",
-        location: "Anywhere in Dubai",
-        imageUrl: "https://example.com/studio-mobile.jpg",
-        totalSeats: 4,
-        openingTime: "10:00",
-        closingTime: "21:00",
-        packages: {
-          connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
+        name: "Recording + Live Video Cutting with Synced Media",
+        price_per_hour: 540.00,
+        currency: "AED",
+        description: "Get high-quality recording with professional editing to enhance your sound",
+        delivery_time: 24,
+        packagePerks: {
+          create: [
+            { name: "Audio / video syncing" },
+            { name: "Raw video in multiple resolutions (1080p/4K)" },
+            { name: "Audio files in multiple formats (MP3, WAV, MP4)" }
           ]
         }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
-        }
       }
-    }),
+    });
+
+  console.log('Studio packages created successfully!');
+
+  // Create Studios
+  console.log('Creating studios...');
+  
+  const studios = await Promise.all([
     // Setup 1
     prisma.studio.create({
       data: {
         name: "Setup 1",
         location: "Dubai",
-        imageUrl: "https://example.com/studio-1.jpg",
-        totalSeats: 4,
+        imageUrl: "https://res.cloudinary.com/dcluqgjqe/image/upload/v1744358650/Frame_1618875659_tkrldb.png",
+        totalSeats: 5,
         openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
+            { id: recordingEditPackage.id },
+            { id: recordingOnlyPackage.id },
+            { id: recordingLiveCuttingPackage.id }
           ]
-        }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
         }
       }
     }),
+    
     // Setup 2
     prisma.studio.create({
       data: {
         name: "Setup 2",
         location: "Dubai",
-        imageUrl: "https://example.com/studio-2.jpg",
-        totalSeats: 4,
+        imageUrl: "https://res.cloudinary.com/dcluqgjqe/image/upload/v1744358654/Frame_1618875660_spu27d.png",
+        totalSeats: 6,
         openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
+            { id: recordingEditPackage.id },
+            { id: recordingOnlyPackage.id },
+            { id: recordingLiveCuttingPackage.id }
           ]
-        }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
         }
       }
     }),
+    
     // Setup 3
     prisma.studio.create({
       data: {
         name: "Setup 3",
         location: "Dubai",
-        imageUrl: "https://example.com/studio-3.jpg",
+        imageUrl: "https://res.cloudinary.com/dcluqgjqe/image/upload/v1744358657/Frame_1618875661_lzt4cy.png",
         totalSeats: 4,
         openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
+            { id: recordingEditPackage.id },
+            { id: recordingOnlyPackage.id },
+            { id: recordingLiveCuttingPackage.id }
           ]
-        }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
         }
       }
     }),
+    
     // Setup 4
     prisma.studio.create({
       data: {
         name: "Setup 4",
         location: "Dubai",
-        imageUrl: "https://example.com/studio-4.jpg",
-        totalSeats: 4,
+        imageUrl: "https://res.cloudinary.com/dcluqgjqe/image/upload/v1744358653/Frame_1618875662_woyngq.png",
+        totalSeats: 3,
         openingTime: "10:00",
         closingTime: "21:00",
         packages: {
           connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
+            { id: recordingEditPackage.id },
+            { id: recordingOnlyPackage.id },
+            { id: recordingLiveCuttingPackage.id }
           ]
-        }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
-        }
-      }
-    }),
-    // Setup 5
-    prisma.studio.create({
-      data: {
-        name: "Setup 5",
-        location: "Dubai",
-        imageUrl: "https://example.com/studio-5.jpg",
-        totalSeats: 4,
-        openingTime: "10:00",
-        closingTime: "21:00",
-        packages: {
-          connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
-          ]
-        }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
-        }
-      }
-    }),
-    // Setup 6
-    prisma.studio.create({
-      data: {
-        name: "Setup 6",
-        location: "Dubai",
-        imageUrl: "https://example.com/studio-6.jpg",
-        totalSeats: 4,
-        openingTime: "10:00",
-        closingTime: "21:00",
-        packages: {
-          connect: [
-            { id: basicPackage.id },
-            { id: proPackage.id }
-          ]
-        }
-      },
-      include: {
-        packages: {
-          include: {
-            packagePerks: true
-          }
         }
       }
     })
   ]);
 
-  // Get today's date and next Friday (21st Feb 2025)
-  const today = new Date();
-  const targetFriday = new Date('2025-02-21');
+  console.log('Studios created successfully!');
   
-  // Generate dates for the next 2 weeks
-  const twoWeeksFromNow = new Date(today);
-  twoWeeksFromNow.setDate(today.getDate() + 14);
+  // Create Additional Services
+  console.log('Creating additional services...');
   
-  // Create bookings for all studios except Mobile studio service
-  for (let i = 1; i < studios.length; i++) {
-    const dates = generateDates(today, 14); // 2 weeks of dates
-    console.log(`Creating bookings for ${studios[i].name} for 2 weeks (fully booked)`);
-    await createBookingsForStudio(studios[i].id, basicPackage.id, dates, dummyLead.id, true); // Set to fully booked
-  }
+  const additionalServices = await Promise.all([
+    // Short Form Edit
+    prisma.additionalService.create({
+      data: {
+        title: "Short Form Edit (Instagram/TikTok)",
+        type: "STANDARD_EDIT_SHORT_FORM",
+        price: 500.00,
+        currency: "AED",
+        description: "High-quality, premium reels with advanced editing, motion graphics, and engaging cuts.",
+        imageUrls: ["https://res.cloudinary.com/deuvbiekl/image/upload/v1741610901/Frame_1618875616_kmnkk0.png"],
+        isActive: true
+      }
+    }),
+    
+    // Long Form Edit
+    prisma.additionalService.create({
+      data: {
+        title: "Long Form Edit (Youtube)",
+        type: "STANDARD_EDIT_LONG_FORM",
+        price: 950.00,
+        currency: "AED",
+        description: "Professional-grade editing with in-depth sound design, smooth transitions, and high production quality per episode.",
+        imageUrls: ["https://res.cloudinary.com/deuvbiekl/image/upload/v1741610519/Youtube_player_dtcx8v.png"],
+        isActive: true
+      }
+    }),
+    
+    // Episode Trailer (Short form)
+    prisma.additionalService.create({
+      data: {
+        title: "Episode Trailer (Short form)",
+        type: "EPISODE_TRAILER_SHORT_FORM",
+        price: 200.00,
+        currency: "AED",
+        description: "Quick, impactful trailer editing to capture attention and drive excitement with key highlights in a concise format.",
+        imageUrls: [],
+        isActive: true
+      }
+    }),
+    
+    // Episode Trailer (Long form)
+    prisma.additionalService.create({
+      data: {
+        title: "Episode Trailer (Long form)",
+        type: "EPISODE_TRAILER_LONG_FORM",
+        price: 200.00,
+        currency: "AED",
+        description: "Professional editing to create a captivating trailer that highlights key moments, engaging your audience with a polished, cinematic preview.",
+        imageUrls: [],
+        isActive: true
+      }
+    }),
+    
+    // Subtitles
+    prisma.additionalService.create({
+      data: {
+        title: "Subtitles (per session)",
+        type: "SUBTITLES",
+        price: 440.00,
+        currency: "AED",
+        description: "Accurate subtitles and captions to improve accessibility and engagement for video content.",
+        imageUrls: ["https://res.cloudinary.com/deuvbiekl/image/upload/v1741610687/Frame_1618875174_bdmhcv.png"],
+        isActive: true
+      }
+    }),
+    
+    // Teleprompter Support
+    prisma.additionalService.create({
+      data: {
+        title: "Teleprompter Support",
+        type: "TELEPROMPTER_SUPPORT",
+        price: 80.00,
+        currency: "AED",
+        description: "On-screen script assistance for seamless delivery, perfect for structured interviews and presentations.",
+        imageUrls: ["https://res.cloudinary.com/deuvbiekl/image/upload/v1741610730/Frame_1618875174_1_zvq2lz.png"],
+        isActive: true
+      }
+    }),
+    
+    // Wardrobe Styling Consultation
+    prisma.additionalService.create({
+      data: {
+        title: "Wardrobe Styling Consultation",
+        type: "WARDROBE_STYLING_CONSULTATION",
+        price: 500.00,
+        currency: "AED",
+        description: "Expert outfit guidance to enhance your on-camera presence and reflect your personal brand.",
+        imageUrls: [],
+        isActive: true
+      }
+    })
+  ]);
+  
+  console.log('Additional services created successfully!');
 
-  // Create bookings for Mobile studio service only until Friday 21st Feb 2025
-  const daysUntilTargetFriday = Math.ceil((targetFriday - today) / (1000 * 60 * 60 * 24));
-  const datesUntilFriday = generateDates(today, daysUntilTargetFriday);
-  console.log(`Creating bookings for Mobile Setup Service until Friday 21st Feb 2025 (${daysUntilTargetFriday} days)`);
-  await createBookingsForStudio(studios[0].id, basicPackage.id, datesUntilFriday, dummyLead.id, true);
-
-  // Create or update discount codes with proper dates
-  const yearEnd = new Date(today.getFullYear(), 11, 31);
-
-  // Welcome discount (percentage-based)
-  const welcomeDiscount = await prisma.discountCode.upsert({
-    where: { code: "WELCOME10" },
-    update: {
-      startDate: today,
-      endDate: yearEnd,
-      isActive: true
-    },
-    create: {
-      code: "WELCOME10",
-      type: "PERCENTAGE",
-      value: 10,
-      startDate: today,
-      endDate: yearEnd,
-      isActive: true,
-      maxUses: 100,
-      minAmount: 500
-    }
-  });
-
-  // Special offer (fixed amount)
-  const specialOffer = await prisma.discountCode.upsert({
-    where: { code: "SPECIAL200" },
-    update: {
-      startDate: today,
-      endDate: yearEnd,
-      isActive: true
-    },
-    create: {
-      code: "SPECIAL200",
-      type: "FIXED_AMOUNT",
-      value: 200,
-      startDate: today,
-      endDate: yearEnd,
-      isActive: true,
-      maxUses: 50,
-      minAmount: 1000
-    }
-  });
-
-  console.log('Studios created:', studios.map(s => s.name));
-  console.log('Bookings created for all studios');
-  console.log('Discount codes updated:', { welcomeDiscount, specialOffer });
+  // Summary of created data
+  console.log('\n--- Seed Summary ---');
+  console.log(`Studios created: ${studios.map(s => s.name).join(', ')}`);
+  console.log(`Packages created: ${[recordingEditPackage.name, recordingOnlyPackage.name].join(', ')}`);
+  console.log(`Additional services created: ${additionalServices.length}`);
+  console.log('No bookings created as requested.');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Error during seeding:', e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
-  }); 
+  });

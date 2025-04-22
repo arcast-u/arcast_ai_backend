@@ -9,6 +9,7 @@ import bookingRoutes from './routes/booking.routes.js';
 import leadRoutes from './routes/lead.routes.js';
 import additionalServiceRoutes from './routes/additionalService.routes.js';
 import discountRoutes from './routes/discount.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 dotenv.config();
@@ -30,6 +31,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/additional-services', additionalServiceRoutes);
 app.use('/api/discount-codes', discountRoutes);
+app.use('/api', paymentRoutes);
 
 export default app;
 
