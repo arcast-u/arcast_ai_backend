@@ -16,7 +16,7 @@ export const MAMO_API_URLS = {
 };
 
 // Get the current MamoPay environment from env variables (default to sandbox)
-export const MAMO_ENVIRONMENT = process.env.MAMO_ENVIRONMENT || MAMO_ENVIRONMENTS.SANDBOX;
+export const MAMO_ENVIRONMENT = process.env.MAMO_ENVIRONMENT || MAMO_ENVIRONMENTS.PRODUCTION;
 
 // MamoPay API key
 export const MAMO_API_KEY = process.env.MAMO_API_KEY || '';

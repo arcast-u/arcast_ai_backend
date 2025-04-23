@@ -1,0 +1,17 @@
+import type { FromSchema } from 'json-schema-to-ts';
+import * as schemas from './schemas';
+export type DeleteWebhooksWebhookidMetadataParam = FromSchema<typeof schemas.DeleteWebhooksWebhookid.metadata>;
+export type DeleteWebhooksWebhookidResponse200 = FromSchema<typeof schemas.DeleteWebhooksWebhookid.response['200']>;
+export type DeleteWebhooksWebhookidResponse403 = FromSchema<typeof schemas.DeleteWebhooksWebhookid.response['403']>;
+export type GetWebhooksMetadataParam = FromSchema<typeof schemas.GetWebhooks.metadata>;
+export type GetWebhooksResponse200 = FromSchema<typeof schemas.GetWebhooks.response['200']>;
+export type GetWebhooksResponse403 = FromSchema<typeof schemas.GetWebhooks.response['403']>;
+export type PatchWebhooksWebhookidBodyParam = FromSchema<typeof schemas.PatchWebhooksWebhookid.body>;
+export type PatchWebhooksWebhookidMetadataParam = FromSchema<typeof schemas.PatchWebhooksWebhookid.metadata>;
+export type PatchWebhooksWebhookidResponse200 = FromSchema<typeof schemas.PatchWebhooksWebhookid.response['200']>;
+export type PatchWebhooksWebhookidResponse403 = FromSchema<typeof schemas.PatchWebhooksWebhookid.response['403']>;
+export type PostWebhooksBodyParam = FromSchema<typeof schemas.PostWebhooks.body>;
+export type PostWebhooksMetadataParam = FromSchema<typeof schemas.PostWebhooks.metadata>;
+export type PostWebhooksResponse200 = FromSchema<typeof schemas.PostWebhooks.response['200']>;
+export type PostWebhooksResponse403 = FromSchema<typeof schemas.PostWebhooks.response['403']>;
+export type PostWebhooksResponse422 = FromSchema<typeof schemas.PostWebhooks.response['422']>;

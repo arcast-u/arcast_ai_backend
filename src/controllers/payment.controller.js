@@ -1,5 +1,4 @@
 import prisma from '../config/db.config.js';
-import { ValidationError } from '../errors/custom.errors.js';
 import {
   createPaymentLink,
   getPaymentDetails,
@@ -164,12 +163,42 @@ export class PaymentController {
 
           // Update the booking status if payment is completed
           if (paymentStatus === PAYMENT_STATUS.COMPLETED) {
+            // Update booking status to CONFIRMED
             await tx.booking.update({
               where: { id: bookingId },
               data: {
                 status: 'CONFIRMED'
               }
             });
+            
+            // Fetch the complete booking object with related data for the webhook
+            const completedBooking = await tx.booking.findUnique({
+              where: { id: bookingId },
+              include: {
+                studio: true,
+                package: true,
+                lead: true
+              }
+            });
+            
+            // Send webhook notification with the complete booking object
+            if (completedBooking) {
+              try {
+                const { WEBHOOK_CONFIG } = await import('../config/webhook.config.js');
+                const { sendWebhookNotification } = await import('../utils/webhook.utils.js');
+                
+                await sendWebhookNotification(
+                  WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
+                  WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
+                  completedBooking
+                );
+                
+                console.log(`Webhook notification sent for confirmed booking: ${bookingId}`);
+              } catch (webhookError) {
+                console.error('Failed to send webhook notification for confirmed booking:', webhookError);
+                // We don't want to fail the transaction if the webhook fails
+              }
+            }
           } else if (paymentStatus === PAYMENT_STATUS.FAILED) {
             // Optionally update booking status on payment failure
             // This depends on business logic -  might want to keep it as PENDING

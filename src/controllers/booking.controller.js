@@ -4,8 +4,6 @@ import { calculateBaseCost, calculateTotalCostWithDiscount, validateBookingTime 
 import { ValidationError } from '../errors/custom.errors.js';
 import { calculateDiscountAmount, validateDiscountCode } from '../utils/discount.utils.js';
 import { createNotionBookingEntry } from '../utils/notion.utils.js';
-import { sendWebhookNotification } from '../utils/webhook.utils.js';
-import { WEBHOOK_CONFIG } from '../config/webhook.config.js';
 
 export class BookingController {
   createBooking = async (req, res) => {
@@ -270,22 +268,6 @@ export class BookingController {
         },
         additionalServices: formattedAdditionalServices
       };
-
-      // Send webhook notification
-      try {
-        await sendWebhookNotification(WEBHOOK_CONFIG.BOOKING_CREATED, {
-          bookingId: result.id,
-          studioName: result.studio.name,
-          packageName: result.package.name,
-          customerName: result.lead.fullName,
-          startTime: result.startTime,
-          endTime: result.endTime,
-          totalCost: result.totalCost
-        });
-      } catch (webhookError) {
-        console.error('Failed to send webhook notification:', webhookError);
-      }
-
       // Create Notion entry
       try {
         await createNotionBookingEntry(result);

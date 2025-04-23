@@ -25,6 +25,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@api/mamopay": "file:.api/apis/mamopay",
     "@apidevtools/swagger-parser": "^10.1.0",
     "@notionhq/client": "^2.2.15",
     "@prisma/client": "^6.3.1",
