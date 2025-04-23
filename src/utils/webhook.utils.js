@@ -3,6 +3,7 @@
  */
 import https from 'https';
 import { URL } from 'url';
+import { formatBookingWithDubaiTime } from './time.utils.js';
 
 /**
  * Send a webhook notification to an external service
@@ -17,6 +18,9 @@ export const sendWebhookNotification = async (webhookUrl, authToken, payload) =>
     try {
       // Parse the URL
       const parsedUrl = new URL(webhookUrl);
+      
+      // Convert booking times to Dubai timezone (UTC+4)
+      const dubaiTimePayload = formatBookingWithDubaiTime(payload);
       
       // Prepare the request options
       const options = {
@@ -77,7 +81,7 @@ export const sendWebhookNotification = async (webhookUrl, authToken, payload) =>
       });
       
       // Format the payload for the webhook
-      const formattedPayload = { payload };
+      const formattedPayload = { payload: dubaiTimePayload };
       
       // Send the payload
       const jsonPayload = JSON.stringify(formattedPayload);

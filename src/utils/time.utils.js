@@ -135,3 +135,42 @@ function isTimeSlotConflicting(timeSlot, booking) {
     (slotEnd > bookingStart && slotEnd <= bookingEnd)
   );
 }
+
+/**
+ * Converts UTC time to Dubai time (UTC+4)
+ * @param {Date|string} utcTime - Time in UTC
+ * @returns {Date} Time converted to Dubai timezone (UTC+4)
+ */
+export const convertToDubaiTime = (utcTime) => {
+  const date = utcTime instanceof Date ? utcTime : new Date(utcTime);
+  
+  // Create a new date object with the Dubai offset (UTC+4)
+  const dubaiTime = new Date(date.getTime() + (4 * 60 * 60 * 1000));
+  
+  return dubaiTime;
+};
+
+/**
+ * Formats a booking object by converting startTime and endTime to Dubai timezone
+ * @param {Object} booking - The booking object
+ * @returns {Object} Booking with times converted to Dubai timezone
+ */
+export const formatBookingWithDubaiTime = (booking) => {
+  if (!booking) return booking;
+  
+  // Create a deep copy of the booking to avoid modifying the original
+  const formattedBooking = JSON.parse(JSON.stringify(booking));
+  
+  // Convert times to Dubai timezone if they exist
+  if (formattedBooking.startTime) {
+    const dubaiStartTime = convertToDubaiTime(formattedBooking.startTime);
+    formattedBooking.startTime = dubaiStartTime.toISOString();
+  }
+  
+  if (formattedBooking.endTime) {
+    const dubaiEndTime = convertToDubaiTime(formattedBooking.endTime);
+    formattedBooking.endTime = dubaiEndTime.toISOString();
+  }
+  
+  return formattedBooking;
+};
