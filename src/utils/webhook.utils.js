@@ -76,11 +76,17 @@ export const sendWebhookNotification = async (webhookUrl, authToken, payload) =>
         });
       });
       
-      // Send the payload - format it according to the expected structure
-      // The payload should be in the format { payload: { ...bookingData } }
-      req.write(JSON.stringify({ payload }));
+      // Format the payload for the webhook
+      const formattedPayload = { payload };
+      
+      // Send the payload
+      const jsonPayload = JSON.stringify(formattedPayload);
+      req.write(jsonPayload);
       req.end();
+      console.log(`📤 Request sent, waiting for response...`);
     } catch (error) {
+      console.error(`❌ Error preparing webhook request: ${error.message}`);
+      console.error(error.stack);
       reject({
         success: false,
         message: 'Error preparing webhook request',

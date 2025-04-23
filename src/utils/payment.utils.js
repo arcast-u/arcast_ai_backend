@@ -129,7 +129,7 @@ export const getPaymentDetails = async (paymentId) => {
 export const refundPayment = async (paymentId, amount, reason = 'Booking cancelled') => {
   try {
     const client = createMamoClient();
-    const response = await client.post(`${MAMO_ENDPOINTS.TRANSACTIONS}/${paymentId}/refund`, {
+    const response = await client.post(`${MAMO_ENDPOINTS.CHARGES}/${paymentId}/refunds`, {
       amount,
       reason
     });
@@ -171,10 +171,12 @@ export const mapMamoStatusToPaymentStatus = (mamoStatus) => {
     'created': PAYMENT_STATUS.PENDING,
     'processing': PAYMENT_STATUS.PENDING,
     'completed': PAYMENT_STATUS.COMPLETED,
+    'captured': PAYMENT_STATUS.COMPLETED,
     'failed': PAYMENT_STATUS.FAILED,
     'refunded': PAYMENT_STATUS.REFUNDED,
     'cancelled': PAYMENT_STATUS.FAILED
   };
   
+  console.log(`🔄 Mapping MamoPay status: '${mamoStatus}' -> ${statusMap[mamoStatus.toLowerCase()] || PAYMENT_STATUS.PENDING}`);
   return statusMap[mamoStatus.toLowerCase()] || PAYMENT_STATUS.PENDING;
 }; 

@@ -110,24 +110,57 @@ export class PaymentController {
   handlePaymentWebhook = async (req, res) => {
     const webhookPayload = req.body;
     
+    
+    // Extract the event type directly from the payload
+    const eventType = webhookPayload.event_type;
+    
+    // Log the extracted information based on event type
+    if (eventType === 'payment_link.create') {
+      console.log('🔄 Received payment link creation webhook:', {
+        event: eventType,
+        linkId: webhookPayload.id,
+        title: webhookPayload.title,
+        externalId: webhookPayload.external_id,
+        customData: webhookPayload.custom_data
+      });
+    } else if (eventType === 'charge.succeeded' || eventType === 'charge.failed') {
+      console.log('🔄 Received payment charge webhook:', {
+        event: eventType,
+        chargeId: webhookPayload.id,
+        status: webhookPayload.status,
+        externalId: webhookPayload.external_id,
+        customData: webhookPayload.custom_data,
+        paymentLinkId: webhookPayload.payment_link_id
+      });
+    } else {
+      console.log(`🔄 Received MamoPay webhook of type: ${eventType || 'unknown'}`);
+    }
+    
     try {
       // Log the webhook event
       const webhookEvent = await prisma.webhookEvent.create({
         data: {
           provider: 'MAMO_PAY',
-          eventType: webhookPayload.event || 'unknown',
+          eventType: eventType || 'unknown',
           payload: webhookPayload,
           status: 'received'
         }
       });
+      console.log(`✅ Webhook event logged with ID: ${webhookEvent.id}`);
 
       // Process based on event type
-      if (webhookPayload.event === 'charge.completed' || webhookPayload.event === 'charge.failed') {
-        const transactionId = webhookPayload.data?.id;
-        const customData = webhookPayload.data?.custom_data || {};
-        const bookingId = customData.bookingId || webhookPayload.data?.external_id;
+      if (eventType === 'charge.succeeded' || eventType === 'charge.failed') {
+        console.log(`🔍 Processing ${eventType} event`);
+        
+        // With charge webhooks, data is at the root level of the payload
+        const transactionId = webhookPayload.id;
+        const customData = webhookPayload.custom_data || {};
+        const bookingId = customData.bookingId || webhookPayload.external_id;
+        
+        console.log(`📊 Payment data: transactionId=${transactionId}, bookingId=${bookingId}`);
 
         if (!bookingId) {
+          console.error('❌ Missing booking ID in webhook payload');
           await prisma.webhookEvent.update({
             where: { id: webhookEvent.id },
             data: {
@@ -139,106 +172,159 @@ export class PaymentController {
         }
 
         // Map MamoPay status to internal status
-        const mamoStatus = webhookPayload.data?.status || '';
+        const mamoStatus = webhookPayload.status || '';
         const paymentStatus = mapMamoStatusToPaymentStatus(mamoStatus);
+        console.log(`🔄 Mapped MamoPay status '${mamoStatus}' to internal status '${paymentStatus}'`);
 
         // Update booking and payment in a transaction
-        await prisma.$transaction(async (tx) => {
-          // Update the payment
-          const payment = await tx.payment.findFirst({
-            where: { bookingId }
-          });
+        console.log(`🔄 Starting database transaction for bookingId=${bookingId}`);
+        try {
+          await prisma.$transaction(async (tx) => {
+            // Update the payment
+            const payment = await tx.payment.findFirst({
+              where: { bookingId }
+            });
 
-          if (payment) {
-            await tx.payment.update({
-              where: { id: payment.id },
-              data: {
-                status: paymentStatus,
-                externalId: transactionId,
-                completedAt: paymentStatus === PAYMENT_STATUS.COMPLETED ? new Date() : null,
-                metadata: { ...payment.metadata, webhook: webhookPayload }
-              }
-            });
-          }
+            if (payment) {
+              console.log(`✅ Found payment record: paymentId=${payment.id}, status=${payment.status}`);
+              await tx.payment.update({
+                where: { id: payment.id },
+                data: {
+                  status: paymentStatus,
+                  externalId: transactionId,
+                  completedAt: paymentStatus === PAYMENT_STATUS.COMPLETED ? new Date() : null,
+                  metadata: { ...payment.metadata, webhook: webhookPayload }
+                }
+              });
+              console.log(`✅ Updated payment status to: ${paymentStatus}`);
+            } else {
+              console.warn(`⚠️ No payment record found for bookingId=${bookingId}`);
+            }
 
-          // Update the booking status if payment is completed
-          if (paymentStatus === PAYMENT_STATUS.COMPLETED) {
-            // Update booking status to CONFIRMED
-            await tx.booking.update({
-              where: { id: bookingId },
-              data: {
-                status: 'CONFIRMED'
-              }
-            });
-            
-            // Fetch the complete booking object with related data for the webhook
-            const completedBooking = await tx.booking.findUnique({
-              where: { id: bookingId },
-              include: {
-                studio: true,
-                package: true,
-                lead: true
-              }
-            });
-            
-            // Send webhook notification with the complete booking object
-            if (completedBooking) {
+            // Update the booking status if payment is completed
+            if (paymentStatus === PAYMENT_STATUS.COMPLETED) {
+              console.log(`🔄 Payment completed, updating booking status to CONFIRMED`);
               try {
-                const { WEBHOOK_CONFIG } = await import('../config/webhook.config.js');
-                const { sendWebhookNotification } = await import('../utils/webhook.utils.js');
+                // Update booking status to CONFIRMED
+                await tx.booking.update({
+                  where: { id: bookingId },
+                  data: {
+                    status: 'CONFIRMED'
+                  }
+                });
+                console.log(`✅ Updated booking status to CONFIRMED`);
+              } catch (bookingUpdateError) {
+                console.error(`❌ Failed to update booking status: ${bookingUpdateError.message}`);
+                throw bookingUpdateError;
+              }
+              
+              // Fetch the complete booking object with related data for the webhook
+              console.log(`🔄 Fetching complete booking data for webhook notification`);
+              try {
+                const completedBooking = await tx.booking.findUnique({
+                  where: { id: bookingId },
+                  include: {
+                    studio: true,
+                    package: true,
+                    lead: true
+                  }
+                });
                 
-                await sendWebhookNotification(
-                  WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
-                  WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
-                  completedBooking
-                );
-                
-                console.log(`Webhook notification sent for confirmed booking: ${bookingId}`);
-              } catch (webhookError) {
-                console.error('Failed to send webhook notification for confirmed booking:', webhookError);
-                // We don't want to fail the transaction if the webhook fails
+                if (completedBooking) {
+                  console.log(`✅ Found completed booking data: studio=${completedBooking.studio?.name}, package=${completedBooking.package?.name}, lead=${completedBooking.lead?.fullName}`);
+                  
+                  // Send webhook notification with the complete booking object
+                  try {
+                    console.log(`🔄 Importing webhook config and utility`);
+                    const { WEBHOOK_CONFIG } = await import('../config/webhook.config.js');
+                    const { sendWebhookNotification } = await import('../utils/webhook.utils.js');
+                    
+                    console.log(`🔄 Preparing to send webhook notification to: ${WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL}`);
+                    await sendWebhookNotification(
+                      WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_URL,
+                      WEBHOOK_CONFIG.TRIGGER_DEV.BOOKING_WEBHOOK_TOKEN,
+                      completedBooking
+                    );
+                    
+                    console.log(`✅ Webhook notification sent successfully for confirmed booking: ${bookingId}`);
+                  } catch (webhookError) {
+                    console.error('❌ Failed to send webhook notification:', webhookError);
+                    console.error('Webhook error details:', webhookError.stack);
+                    // We don't want to fail the transaction if the webhook fails
+                  }
+                } else {
+                  console.warn(`⚠️ Could not find booking data after status update for bookingId=${bookingId}`);
+                }
+              } catch (bookingFetchError) {
+                console.error(`❌ Failed to fetch booking data: ${bookingFetchError.message}`);
+                // Don't throw here to allow transaction to complete
+              }
+            } else if (paymentStatus === PAYMENT_STATUS.FAILED) {
+              console.log(`🔄 Payment failed, updating booking status to CANCELLED`);
+              // Optionally update booking status on payment failure
+              try {
+                await tx.booking.update({
+                  where: { id: bookingId },
+                  data: {
+                    status: 'CANCELLED'
+                  }
+                });
+                console.log(`✅ Updated booking status to CANCELLED due to payment failure`);
+              } catch (bookingUpdateError) {
+                console.error(`❌ Failed to update booking status to CANCELLED: ${bookingUpdateError.message}`);
+                throw bookingUpdateError;
               }
             }
-          } else if (paymentStatus === PAYMENT_STATUS.FAILED) {
-            // Optionally update booking status on payment failure
-            // This depends on business logic -  might want to keep it as PENDING
-            // to allow for retries, or mark it as CANCELLED
-            await tx.booking.update({
-              where: { id: bookingId },
+
+            // Update webhook event status
+            await tx.webhookEvent.update({
+              where: { id: webhookEvent.id },
               data: {
-                status: 'CANCELLED'
+                status: 'processed',
+                processedAt: new Date()
               }
             });
-          }
-
-          // Update webhook event status
-          await tx.webhookEvent.update({
-            where: { id: webhookEvent.id },
-            data: {
-              status: 'processed',
-              processedAt: new Date()
-            }
+            console.log(`✅ Updated webhook event status to 'processed'`);
           });
-        });
+          console.log(`✅ Database transaction completed successfully`);
+        } catch (transactionError) {
+          console.error(`❌ Transaction failed: ${transactionError.message}`);
+          console.error('Transaction error stack:', transactionError.stack);
+          throw transactionError;
+        }
 
         return res.status(200).json({ message: 'Webhook processed successfully' });
+      } else if (eventType === 'payment_link.create') {
+        // For payment link creation, we just acknowledge receipt
+        console.log(`ℹ️ Received payment link creation webhook, no further action needed`);
+        await prisma.webhookEvent.update({
+          where: { id: webhookEvent.id },
+          data: {
+            status: 'acknowledged',
+            processedAt: new Date()
+          }
+        });
+        console.log(`✅ Acknowledged payment link creation webhook`);
+      } else {
+        console.log(`ℹ️ Received unhandled webhook event type: ${eventType || 'unknown'}`);
+        // For other event types, just acknowledge receipt
+        await prisma.webhookEvent.update({
+          where: { id: webhookEvent.id },
+          data: {
+            status: 'acknowledged',
+            processedAt: new Date()
+          }
+        });
+        console.log(`✅ Acknowledged webhook event: ${eventType || 'unknown'}`);
       }
-
-      // For other event types, just acknowledge receipt
-      await prisma.webhookEvent.update({
-        where: { id: webhookEvent.id },
-        data: {
-          status: 'acknowledged',
-          processedAt: new Date()
-        }
-      });
 
       res.status(200).json({ message: 'Webhook received' });
     } catch (error) {
-      console.error('Error processing webhook:', error);
+      console.error('❌ Error processing webhook:', error);
+      console.error('Error stack:', error.stack);
       
       // Log the error in the webhook event
-      if (webhookPayload) {
+      if (webhookEvent) {
         try {
           await prisma.webhookEvent.update({
             where: { id: webhookEvent.id },
@@ -248,8 +334,9 @@ export class PaymentController {
               payload: { ...webhookPayload, error: error.message }
             }
           });
+          console.log(`✅ Updated webhook event with error status`);
         } catch (updateError) {
-          console.error('Error updating webhook event:', updateError);
+          console.error('❌ Error updating webhook event:', updateError);
         }
       }
       
