@@ -1,4 +1,4 @@
-import prisma from '../config/db.config.js';
+import prisma from '../src/config/db.config.js';
 
 /**
  * Migration script to update studio opening hours from 9am to 10am

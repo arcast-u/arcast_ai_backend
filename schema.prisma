@@ -136,6 +136,7 @@ model AdditionalService {
     imageUrls       String[]  // Array of image URLs
     videoUrl        String?   // Optional video URL
     isActive        Boolean   @default(true)
+    order           Int       @default(999) // Controls display order on frontend, default high value for existing records
     createdAt       DateTime  @default(now())
     updatedAt       DateTime  @updatedAt
     bookingServices BookingAdditionalService[]

@@ -57,7 +57,7 @@ export class AdditionalServiceController {
       const additionalServices = await prisma.additionalService.findMany({
         where,
         orderBy: {
-          createdAt: 'desc'
+          order: 'asc'
         }
       });
 
