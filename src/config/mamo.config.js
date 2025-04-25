@@ -35,10 +35,10 @@ export const MAMO_ENDPOINTS = {
 
 // Payment link configuration defaults
 export const MAMO_DEFAULTS = {
-  TITLE: 'Arcast AI Booking',
+  TITLE: 'ARcast Booking',
   CURRENCY: 'AED',
-  RETURN_URL: process.env.MAMO_RETURN_URL || 'https://arcast.ai/booking/confirmation',
-  FAILURE_RETURN_URL: process.env.MAMO_FAILURE_RETURN_URL || 'https://arcast.ai/booking/failed',
+  RETURN_URL: process.env.MAMO_RETURN_URL || 'https://arcast.studio/bookings/confirmation',
+  FAILURE_RETURN_URL: process.env.MAMO_FAILURE_RETURN_URL || 'https://arcast.studio/bookings/failed',
   ENABLE_CUSTOMER_DETAILS: true,
   SEND_CUSTOMER_RECEIPT: true
 };

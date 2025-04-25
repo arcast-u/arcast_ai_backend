@@ -1,6 +1,6 @@
 # MamoPay Integration Guide
 
-This document outlines the MamoPay payment integration with the Arcast AI Backend.
+This document outlines the MamoPay payment integration with the ARcast Backend.
 
 ## Overview
 

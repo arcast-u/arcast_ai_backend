@@ -1,4 +1,4 @@
-# Arcast AI Backend
+# ARcast Backend
 
 A Node.js/Express.js backend service for managing studio bookings and scheduling.
 
