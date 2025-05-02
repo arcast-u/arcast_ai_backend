@@ -96,7 +96,7 @@ model Lead {
     id                String    @id @default(uuid())
     fullName          String
     email             String?   // Made optional
-    phoneNumber       String
+    phoneNumber       String?   // Made optional
     whatsappNumber    String?   // Optional WhatsApp number
     recordingLocation String?
     bookings          Booking[]

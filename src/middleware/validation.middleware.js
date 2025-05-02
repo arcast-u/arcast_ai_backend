@@ -8,8 +8,8 @@ export const validateBookingRequest = (req, res, next) => {
     throw new ValidationError('Missing required booking fields');
   }
 
-  if (!lead.fullName || !lead.phoneNumber) {
-    throw new ValidationError('Missing required lead information: fullName and phoneNumber are required');
+  if (!lead.fullName) {
+    throw new ValidationError('Missing required lead information: fullName is required');
   }
 
   // Validate email format if provided
@@ -152,8 +152,8 @@ export const validateCreateLeadRequest = (req, res, next) => {
   const { fullName, email, phoneNumber } = req.body;
 
   // Check required fields
-  if (!fullName || !email || !phoneNumber) {
-    throw new ValidationError('Missing required fields: fullName, email, and phoneNumber are required');
+  if (!fullName || !email) {
+    throw new ValidationError('Missing required fields: fullName and email are required');
   }
 
   // Validate email format
@@ -162,10 +162,12 @@ export const validateCreateLeadRequest = (req, res, next) => {
     throw new ValidationError('Invalid email format');
   }
 
-  // Validate phone number format (basic validation, can be enhanced based on requirements)
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-  if (!phoneRegex.test(phoneNumber.replace(/[\s-]/g, ''))) {
-    throw new ValidationError('Invalid phone number format');
+  // Validate phone number format if provided
+  if (phoneNumber) {
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/[\s-]/g, ''))) {
+      throw new ValidationError('Invalid phone number format');
+    }
   }
 
   // Validate fullName length

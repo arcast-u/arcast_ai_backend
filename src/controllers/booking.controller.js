@@ -163,7 +163,7 @@ export class BookingController {
                 where: { id: existingLead.id },
                 data: {
                   fullName: lead.fullName,
-                  phoneNumber: lead.phoneNumber,
+                  ...(lead.phoneNumber && { phoneNumber: lead.phoneNumber }),
                   ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
                   ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
                 }
@@ -172,7 +172,7 @@ export class BookingController {
                 data: {
                   fullName: lead.fullName,
                   email: lead.email,
-                  phoneNumber: lead.phoneNumber,
+                  ...(lead.phoneNumber && { phoneNumber: lead.phoneNumber }),
                   ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
                   ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
                 }
@@ -181,7 +181,7 @@ export class BookingController {
           bookingLead = await tx.lead.create({
             data: {
               fullName: lead.fullName,
-              phoneNumber: lead.phoneNumber,
+              ...(lead.phoneNumber && { phoneNumber: lead.phoneNumber }),
               ...(lead.recordingLocation && { recordingLocation: lead.recordingLocation }),
               ...(lead.whatsappNumber && { whatsappNumber: lead.whatsappNumber })
             }

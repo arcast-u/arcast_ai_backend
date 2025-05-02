@@ -83,7 +83,6 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                 type: object
  *                 required:
  *                   - fullName
- *                   - phoneNumber
  *                 properties:
  *                   fullName:
  *                     type: string
@@ -93,6 +92,7 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *                     description: Optional email address
  *                   phoneNumber:
  *                     type: string
+ *                     description: Optional phone number
  *                   whatsappNumber:
  *                     type: string
  *                     description: Optional WhatsApp contact number
