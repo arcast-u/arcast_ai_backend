@@ -10,6 +10,7 @@ import leadRoutes from './routes/lead.routes.js';
 import additionalServiceRoutes from './routes/additionalService.routes.js';
 import discountRoutes from './routes/discount.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import { errorHandler } from './middleware/error.middleware.js';
 
 const CSS_URL = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.1.0/swagger-ui.min.css";
 dotenv.config();
@@ -32,6 +33,9 @@ app.use('/api/leads', leadRoutes);
 app.use('/api/additional-services', additionalServiceRoutes);
 app.use('/api/discount-codes', discountRoutes);
 app.use('/api', paymentRoutes);
+
+// Global error handling middleware - must be after all routes
+app.use(errorHandler);
 
 export default app;
 

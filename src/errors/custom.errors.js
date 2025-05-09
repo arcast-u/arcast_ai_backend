@@ -17,4 +17,12 @@ export class AuthenticationError extends Error {
     super(message);
     this.name = 'AuthenticationError';
   }
+}
+
+export class DiscountCodeError extends ValidationError {
+  constructor(message) {
+    super(message);
+    this.name = 'DiscountCodeError';
+    this.isDiscountError = true;
+  }
 } 

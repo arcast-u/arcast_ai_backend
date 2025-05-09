@@ -294,60 +294,72 @@ export class BookingController {
 
   validateDiscountCode = async (req, res) => {
     try {
-      const { code, amount, email } = req.query;
-      
+      const { code, email, bookingAmount } = req.body;
+
       const discount = await prisma.discountCode.findUnique({
         where: { code }
       });
-      
+
       if (!discount || !discount.isActive || discount.endDate < new Date()) {
         return res.status(400).json({
           success: false,
+          error: 'Invalid or expired discount code',
           message: 'Invalid or expired discount code'
         });
       }
-      
+
       if (discount.maxUses && discount.usedCount >= discount.maxUses) {
         return res.status(400).json({
           success: false,
-          message: 'Discount code has reached its usage limit'
+          error: 'This discount code has reached its maximum usage limit',
+          message: 'This discount code has reached its maximum usage limit'
         });
       }
 
-      // Check for first-time client restriction if email is provided
+      // Check for first-time client restriction
       if (discount.firstTimeOnly && email) {
-        const bookingsCount = await prisma.booking.count({
+        const existingBookings = await prisma.booking.count({
           where: {
             lead: {
-              email: email
+              email
             }
           }
         });
-        
-        if (bookingsCount > 0) {
+
+        if (existingBookings > 0) {
           return res.status(400).json({
             success: false,
-            message: 'This discount code is only valid for first-time clients'
+            error: 'You cannot use this discount code because you have made a booking before. This code is only valid for first-time clients.',
+            message: 'You cannot use this discount code because you have made a booking before. This code is only valid for first-time clients.'
           });
         }
       }
-      
+
+      // If minimum amount is specified, check against booking amount
+      if (discount.minAmount && bookingAmount && bookingAmount < discount.minAmount) {
+        return res.status(400).json({
+          success: false,
+          error: `This discount code requires a minimum booking amount of $${discount.minAmount}`,
+          message: `This discount code requires a minimum booking amount of $${discount.minAmount}`
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        valid: true,
-        type: discount.type,
-        value: discount.value,
-        minAmount: discount.minAmount,
-        firstTimeOnly: discount.firstTimeOnly
+        data: {
+          code: discount.code,
+          type: discount.type,
+          value: discount.value,
+          minAmount: discount.minAmount,
+          firstTimeOnly: discount.firstTimeOnly
+        }
       });
     } catch (error) {
       console.error('Error validating discount code:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to validate discount code',
-      });
+      // Let the global error handler handle this
+      throw error;
     }
-  }
+  };
 
   /**
    * Apply a discount code to a booking
@@ -356,67 +368,85 @@ export class BookingController {
     try {
       const { bookingId, discountCode: code } = req.body;
 
-      // Get booking details with lead info
+      // Find the booking
       const booking = await prisma.booking.findUnique({
         where: { id: bookingId },
-        include: { 
+        include: {
           discountCode: true,
           lead: true
         }
       });
-      
+
       if (!booking) {
         throw new ValidationError('Booking not found');
       }
-      
+
       // Check if a discount code is already applied
       if (booking.discountCode) {
         throw new ValidationError('A discount code has already been applied to this booking');
       }
-      
+
       const discountCode = await prisma.discountCode.findUnique({
         where: { code }
       });
-      
+
       if (!discountCode) {
         throw new ValidationError('Invalid discount code');
       }
-      
-      // Validate the discount code using lead's email for first-time check
-      if (booking.lead && booking.lead.email) {
-        await validateDiscountCode(discountCode, booking.totalCost, booking.lead.email);
-      } else {
-        // If no email, just validate the basic aspects of the discount code
-        await validateDiscountCode(discountCode, booking.totalCost);
-      }
-      
-      // Calculate discount amount
-      const discountAmount = calculateDiscountAmount(discountCode, booking.totalCost);
-      
-      // Update the discount code usage count
-      await prisma.discountCode.update({
-        where: { id: discountCode.id },
-        data: { usedCount: discountCode.usedCount + 1 }
-      });
-      
-      // Apply the discount to the booking
-      const updatedBooking = await prisma.booking.update({
-        where: { id: bookingId },
-        data: {
-          discountCodeId: discountCode.id,
-          discountAmount: discountAmount,
-          totalCost: booking.totalCost - discountAmount
+
+      try {
+        // Validate the discount code using lead's email for first-time check
+        if (booking.lead && booking.lead.email) {
+          await validateDiscountCode(discountCode, booking.totalCost, booking.lead.email);
+        } else {
+          // If no email, just validate the basic aspects of the discount code
+          await validateDiscountCode(discountCode, booking.totalCost);
         }
-      });
       
-      res.json({
-        success: true,
-        data: updatedBooking
-      });
+        // Calculate discount amount
+        const discountAmount = calculateDiscountAmount(discountCode, booking.totalCost);
+      
+        // Update the discount code usage count
+        await prisma.discountCode.update({
+          where: { id: discountCode.id },
+          data: { usedCount: discountCode.usedCount + 1 }
+        });
+      
+        // Apply the discount to the booking
+        const updatedBooking = await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            discountCodeId: discountCode.id,
+            discountAmount: discountAmount,
+            totalCost: booking.totalCost - discountAmount
+          },
+          include: {
+            studio: true,
+            additionalServices: {
+              include: {
+                additionalService: true
+              }
+            },
+            lead: true,
+            discountCode: true
+          }
+        });
+      
+        res.status(200).json({
+          success: true,
+          data: this.formatBookingResponse(updatedBooking),
+          message: 'Discount code applied successfully'
+        });
+      } catch (error) {
+        // This catch block is specifically for discount validation errors
+        // and we want to pass them along to the client
+        throw error;
+      }
     } catch (error) {
+      // Let the global error handler handle this
       next(error);
     }
-  }
+  };
 
   getBookingDetails = async (req, res) => {
     const { id } = req.params;

@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/custom.errors.js';
+import { DiscountCodeError } from '../errors/custom.errors.js';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -21,26 +21,26 @@ export const calculateDiscountAmount = (discountCode, bookingAmount) => {
  * @param {Object} discountCode - The discount code object
  * @param {number} bookingAmount - The original booking amount
  * @param {string} email - The email of the client making the booking
- * @throws {ValidationError} If the discount code is invalid
+ * @throws {DiscountCodeError} If the discount code is invalid
  */
 export const validateDiscountCode = async (discountCode, bookingAmount, email = null) => {
   const now = new Date();
 
   if (!discountCode.isActive) {
-    throw new ValidationError('This discount code is not active');
+    throw new DiscountCodeError('This discount code is not active');
   }
 
   if (now < discountCode.startDate || now > discountCode.endDate) {
-    throw new ValidationError('This discount code has expired or is not yet valid');
+    throw new DiscountCodeError('This discount code has expired or is not yet valid');
   }
 
   if (discountCode.maxUses && discountCode.usedCount >= discountCode.maxUses) {
-    throw new ValidationError('This discount code has reached its usage limit');
+    throw new DiscountCodeError('This discount code has reached its maximum usage limit');
   }
 
   if (discountCode.minAmount && bookingAmount < discountCode.minAmount) {
-    throw new ValidationError(
-      `This discount code requires a minimum booking amount of ${discountCode.minAmount}`
+    throw new DiscountCodeError(
+      `This discount code requires a minimum booking amount of $${discountCode.minAmount}`
     );
   }
 
@@ -56,8 +56,8 @@ export const validateDiscountCode = async (discountCode, bookingAmount, email = 
     });
     
     if (bookingsCount > 0) {
-      throw new ValidationError(
-        'This discount code is only valid for first-time clients'
+      throw new DiscountCodeError(
+        'You cannot use this discount code because you have made a booking before. This code is only valid for first-time clients.'
       );
     }
   }
