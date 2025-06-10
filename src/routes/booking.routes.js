@@ -222,21 +222,34 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *               $ref: '#/components/schemas/Error'
  * 
  * /bookings/validate-discount:
- *   get:
+ *   post:
  *     summary: Validate a discount code
  *     description: |
  *       Validates a discount code without applying it. Use this endpoint to:
  *       - Check if a discount code is valid
  *       - Get discount details (type, value, minimum amount)
  *       - Verify if the code has reached its usage limit
+ *       - Check if the user is eligible for first-time client discounts
  *     tags: [Bookings]
- *     parameters:
- *       - in: query
- *         name: code
- *         required: true
- *         schema:
- *           type: string
- *         description: The discount code to validate
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - code
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 description: The discount code to validate
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Optional email address to check first-time client eligibility
+ *               bookingAmount:
+ *                 type: number
+ *                 description: Optional booking amount to validate against minimum amount requirement
  *     responses:
  *       200:
  *         description: Discount code validation result
@@ -245,22 +258,46 @@ import { validateBookingRequest, validateDiscountCodeRequest } from '../middlewa
  *             schema:
  *               type: object
  *               properties:
- *                 valid:
+ *                 success:
  *                   type: boolean
- *                   description: Whether the code is valid and can be used
- *                 type:
+ *                   description: Whether the validation was successful
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     code:
+ *                       type: string
+ *                       description: The validated discount code
+ *                     type:
+ *                       type: string
+ *                       enum: [PERCENTAGE, FIXED_AMOUNT]
+ *                       description: Type of discount
+ *                     value:
+ *                       type: number
+ *                       description: Discount value
+ *                     minAmount:
+ *                       type: number
+ *                       description: Minimum booking amount required
+ *                     firstTimeOnly:
+ *                       type: boolean
+ *                       description: Whether this discount is only for first-time clients
+ *       400:
+ *         description: Invalid discount code or validation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
  *                   type: string
- *                   enum: [PERCENTAGE, FIXED_AMOUNT]
- *                   description: "Type of discount (only if valid is true)"
- *                 value:
- *                   type: number
- *                   description: "Discount value (only if valid is true)"
- *                 minAmount:
- *                   type: number
- *                   description: "Minimum booking amount required (only if valid is true)"
+ *                   description: Error type
  *                 message:
  *                   type: string
- *                   description: "Error message (only if valid is false)"
+ *                   description: Detailed error message
+ *       500:
+ *         description: Server error
  */
 
 const router = Router();
@@ -268,7 +305,7 @@ const bookingController = new BookingController();
 
 router.post('/', validateBookingRequest, bookingController.createBooking);
 router.post('/apply-discount', validateDiscountCodeRequest, bookingController.applyDiscountCode);
-router.get('/validate-discount', bookingController.validateDiscountCode);
+router.post('/validate-discount', bookingController.validateDiscountCode);
 router.get('/:id', bookingController.getBookingDetails);
 
 export default router;
